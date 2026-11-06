@@ -12,10 +12,16 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import com.naovt.app.R
 
+/** Bocas disponibles. [Open] usa por ahora la boca de beso ("3"), que sirve para simular hablar. */
+enum class NaoMouth(@DrawableRes val drawable: Int) {
+    Closed(R.drawable.boca_base),
+    Open(R.drawable.boca_besando),
+}
+
 /** Expresión facial de Nao: define qué capas de ojos y boca se muestran. */
-enum class NaoExpression(@DrawableRes val eyes: Int, @DrawableRes val mouth: Int) {
-    Neutral(R.drawable.ojos_base, R.drawable.boca_base),
-    Loved(R.drawable.ojos_corazon_mejilla, R.drawable.boca_besando),
+enum class NaoExpression(@DrawableRes val eyes: Int, val mouth: NaoMouth) {
+    Neutral(R.drawable.ojos_base, NaoMouth.Closed),
+    Loved(R.drawable.ojos_corazon_mejilla, NaoMouth.Open),
 }
 
 /** Relación de aspecto de todas las capas del personaje (1024x1536). */
@@ -26,12 +32,15 @@ private const val LAYER_ASPECT_RATIO = 1024f / 1536f
  * Orden (de abajo hacia arriba): cuerpo -> brazo izq. -> brazo der. -> pecho -> ojos -> boca.
  * El fondo se dibuja afuera (ver RoomBackground), siempre debajo de este componente.
  *
+ * [mouthOverride] permite forzar la boca (por ejemplo, al hablar) sin cambiar los ojos.
+ *
  * Los dos brazos son dibujos distintos (no son espejo exacto), por eso se usan dos imágenes.
  */
 @Composable
 fun NaoVTAvatar(
     expression: NaoExpression,
     modifier: Modifier = Modifier,
+    mouthOverride: NaoMouth? = null,
 ) {
     Box(modifier = modifier.aspectRatio(LAYER_ASPECT_RATIO)) {
         AvatarLayer(R.drawable.nao_base, stringResource(R.string.nao_description))
@@ -39,7 +48,7 @@ fun NaoVTAvatar(
         AvatarLayer(R.drawable.nao_brazo_derecho_base)
         AvatarLayer(R.drawable.pecho_base)
         AvatarLayer(expression.eyes)
-        AvatarLayer(expression.mouth)
+        AvatarLayer((mouthOverride ?: expression.mouth).drawable)
     }
 }
 

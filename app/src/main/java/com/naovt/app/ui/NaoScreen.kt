@@ -1,5 +1,6 @@
 package com.naovt.app.ui
 
+import android.widget.Toast
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -19,13 +20,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.naovt.app.R
 import com.naovt.app.ui.avatar.NaoExpression
+import com.naovt.app.dialog.NaoPhrases
 import com.naovt.app.ui.avatar.NaoVTAvatar
+import com.naovt.app.ui.avatar.rememberTalkingMouth
 import com.naovt.app.ui.room.Room
 import com.naovt.app.ui.room.RoomBackground
+import com.naovt.app.voice.NaoVoice
+import com.naovt.app.voice.rememberNaoVoice
 import kotlinx.coroutines.delay
 
 private const val LOVED_DURATION_MS = 2000L
@@ -36,6 +42,21 @@ fun NaoScreen() {
     var room by rememberSaveable { mutableStateOf(Room.NaoRoom) }
     var tapCount by remember { mutableIntStateOf(0) }
     var expression by remember { mutableStateOf(NaoExpression.Neutral) }
+    var lastPhrase by remember { mutableStateOf<String?>(null) }
+
+    val context = LocalContext.current
+    val voice = rememberNaoVoice()
+    val talkingMouth = rememberTalkingMouth(voice.isSpeaking)
+
+    // Avisa si el teléfono no puede hablar (sin voz en español o sin motor TTS).
+    LaunchedEffect(voice.problem) {
+        val message = when (voice.problem) {
+            NaoVoice.Problem.SpanishUnavailable -> R.string.voice_no_spanish
+            NaoVoice.Problem.EngineFailed -> R.string.voice_engine_failed
+            null -> return@LaunchedEffect
+        }
+        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+    }
 
     // Cada toque reinicia este efecto: cara de cariño 2 s y luego vuelve a la normalidad.
     LaunchedEffect(tapCount) {
@@ -51,10 +72,18 @@ fun NaoScreen() {
 
         NaoVTAvatar(
             expression = expression,
+            mouthOverride = talkingMouth,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxHeight(0.85f)
-                .pointerInput(Unit) { detectTapGestures { tapCount++ } },
+                .pointerInput(Unit) {
+                    detectTapGestures {
+                        tapCount++ // cara de cariño
+                        val phrase = NaoPhrases.random(previous = lastPhrase)
+                        lastPhrase = phrase
+                        voice.speak(phrase) // corta la frase anterior si seguía hablando
+                    }
+                },
         )
 
         ExtendedFloatingActionButton(
