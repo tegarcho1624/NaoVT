@@ -5,4 +5,25 @@
     <string name="nao_description">Naomi</string>
     <string name="voice_no_spanish">Tu teléfono no tiene voz en español. Instálala en Ajustes → Texto a voz.</string>
     <string name="voice_engine_failed">No se pudo iniciar el motor de texto a voz.</string>
+
+    <!-- Baúl de Recuerdos -->
+    <string name="vault_button">Baúl de Recuerdos</string>
+    <string name="vault_title">Baúl de Recuerdos</string>
+    <string name="vault_subtitle_empty">Nuestra colección</string>
+    <string name="vault_count_one">1 recuerdo</string>
+    <string name="vault_count">%d recuerdos</string>
+    <string name="vault_empty">Aún no hay recuerdos. ¡Añade el primero!</string>
+    <string name="vault_add">Añadir recuerdo</string>
+    <string name="vault_close">Cerrar</string>
+    <string name="vault_close_vault">Cerrar el baúl</string>
+    <string name="vault_photo">Foto del recuerdo</string>
+    <string name="vault_delete">Eliminar recuerdo</string>
+    <string name="vault_delete_title">¿Eliminar este recuerdo?</string>
+    <string name="vault_delete_message">Se borrará la foto y su nota. Esta acción no se puede deshacer.</string>
+    <string name="vault_delete_confirm">Eliminar</string>
+    <string name="vault_cancel">Cancelar</string>
+    <string name="vault_new_title">Nuevo recuerdo</string>
+    <string name="vault_note_label">Título o nota (opcional)</string>
+    <string name="vault_save">Guardar</string>
+    <string name="vault_save_failed">No se pudo guardar el recuerdo. Inténtalo de nuevo.</string>
 </resources>

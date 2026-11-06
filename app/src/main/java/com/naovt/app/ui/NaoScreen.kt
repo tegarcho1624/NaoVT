@@ -2,12 +2,17 @@ package com.naovt.app.ui
 
 import android.widget.Toast
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -38,7 +43,7 @@ private const val LOVED_DURATION_MS = 2000L
 
 /** Pantalla principal: fondo + avatar + botón para cambiar de habitación. */
 @Composable
-fun NaoScreen() {
+fun NaoScreen(onOpenVault: () -> Unit = {}) {
     var room by rememberSaveable { mutableStateOf(Room.NaoRoom) }
     var tapCount by remember { mutableIntStateOf(0) }
     var expression by remember { mutableStateOf(NaoExpression.Neutral) }
@@ -86,14 +91,22 @@ fun NaoScreen() {
                 },
         )
 
-        ExtendedFloatingActionButton(
-            onClick = { room = room.next() },
+        Column(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .safeDrawingPadding()
                 .padding(12.dp),
+            horizontalAlignment = Alignment.End,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(stringResource(R.string.change_room))
+            ExtendedFloatingActionButton(onClick = { room = room.next() }) {
+                Text(stringResource(R.string.change_room))
+            }
+            ExtendedFloatingActionButton(
+                onClick = onOpenVault,
+                icon = { Icon(Icons.Default.Favorite, contentDescription = null) },
+                text = { Text(stringResource(R.string.vault_button)) },
+            )
         }
     }
 }

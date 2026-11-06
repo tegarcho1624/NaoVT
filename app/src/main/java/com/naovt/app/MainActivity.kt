@@ -4,7 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import com.naovt.app.ui.NaoScreen
+import com.naovt.app.ui.NaoApp
 import com.naovt.app.ui.theme.NaoVTTheme
 
 class MainActivity : ComponentActivity() {
@@ -13,7 +13,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             NaoVTTheme {
-                NaoScreen()
+                NaoApp()
             }
         }
     }

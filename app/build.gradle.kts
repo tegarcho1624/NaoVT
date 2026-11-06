@@ -12,8 +12,8 @@ android {
         applicationId = "com.naovt.app"
         minSdk = 24
         targetSdk = 34
-        versionCode = 2
-        versionName = "0.2.0-voz"
+        versionCode = 3
+        versionName = "0.3.0-baul"
     }
 
     buildTypes {
@@ -40,4 +40,7 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material:material-icons-core")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.6")
+    implementation("io.coil-kt:coil-compose:2.7.0")
 }
