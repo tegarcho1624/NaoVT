@@ -26,4 +26,18 @@
     <string name="vault_note_label">Título o nota (opcional)</string>
     <string name="vault_save">Guardar</string>
     <string name="vault_save_failed">No se pudo guardar el recuerdo. Inténtalo de nuevo.</string>
+
+    <!-- Modo Flotante -->
+    <string name="overlay_button">Modo Flotante</string>
+    <string name="overlay_stop_button">Detener Modo Flotante</string>
+    <string name="overlay_channel_name">Nao flotante</string>
+    <string name="overlay_notification_title">Nao está acompañándote</string>
+    <string name="overlay_notification_text">Toca para abrir la app.</string>
+    <string name="overlay_notification_stop">Detener</string>
+    <string name="overlay_permission_needed">Activa «Aparecer encima de otras apps» para NaoVT y vuelve.</string>
+    <string name="overlay_permission_denied">Sin ese permiso no puedo mostrar a Nao flotando.</string>
+    <string name="overlay_permission_missing">Falta el permiso para aparecer encima de otras apps.</string>
+    <string name="overlay_notifications_denied">Sin notificaciones no verás el botón para detener a Nao en la barra, pero puedes hacerlo desde la app.</string>
+    <string name="overlay_failed">No se pudo mostrar a Nao flotando.</string>
+    <string name="overlay_open_blocked">Tu teléfono no dejó abrir la app desde Nao. Ábrela desde la notificación.</string>
 </resources>

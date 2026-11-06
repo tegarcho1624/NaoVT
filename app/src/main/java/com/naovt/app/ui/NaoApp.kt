@@ -12,6 +12,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import com.naovt.app.overlay.NaoOverlayService
+import com.naovt.app.overlay.rememberOverlayController
 import com.naovt.app.ui.vault.VaultScreen
 
 /**
@@ -21,9 +23,14 @@ import com.naovt.app.ui.vault.VaultScreen
 @Composable
 fun NaoApp() {
     var vaultOpen by rememberSaveable { mutableStateOf(false) }
+    val overlay = rememberOverlayController()
 
     Box(modifier = Modifier.fillMaxSize()) {
-        NaoScreen(onOpenVault = { vaultOpen = true })
+        NaoScreen(
+            onOpenVault = { vaultOpen = true },
+            isOverlayRunning = NaoOverlayService.isRunning,
+            onToggleOverlay = { if (NaoOverlayService.isRunning) overlay.stop() else overlay.start() },
+        )
 
         AnimatedVisibility(
             visible = vaultOpen,

@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
@@ -43,7 +45,11 @@ private const val LOVED_DURATION_MS = 2000L
 
 /** Pantalla principal: fondo + avatar + botón para cambiar de habitación. */
 @Composable
-fun NaoScreen(onOpenVault: () -> Unit = {}) {
+fun NaoScreen(
+    onOpenVault: () -> Unit = {},
+    isOverlayRunning: Boolean = false,
+    onToggleOverlay: () -> Unit = {},
+) {
     var room by rememberSaveable { mutableStateOf(Room.NaoRoom) }
     var tapCount by remember { mutableIntStateOf(0) }
     var expression by remember { mutableStateOf(NaoExpression.Neutral) }
@@ -106,6 +112,22 @@ fun NaoScreen(onOpenVault: () -> Unit = {}) {
                 onClick = onOpenVault,
                 icon = { Icon(Icons.Default.Favorite, contentDescription = null) },
                 text = { Text(stringResource(R.string.vault_button)) },
+            )
+            ExtendedFloatingActionButton(
+                onClick = onToggleOverlay,
+                icon = {
+                    Icon(
+                        if (isOverlayRunning) Icons.Default.Close else Icons.Default.Face,
+                        contentDescription = null,
+                    )
+                },
+                text = {
+                    Text(
+                        stringResource(
+                            if (isOverlayRunning) R.string.overlay_stop_button else R.string.overlay_button
+                        )
+                    )
+                },
             )
         }
     }
