@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">NaoVT</string>
+    <string name="change_room">Cambiar Habitación</string>
+    <string name="nao_description">Naomi</string>
+</resources>
