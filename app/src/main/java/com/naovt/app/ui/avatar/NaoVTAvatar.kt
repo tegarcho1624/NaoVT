@@ -38,12 +38,13 @@ private const val LAYER_ASPECT_RATIO = 1024f / 1536f
  * El fondo se dibuja afuera (ver RoomBackground), siempre debajo de este componente.
  *
  * Estados de la cara (de mayor a menor prioridad):
- * 1. Hablando ([isSpeaking]): ojos normales abiertos; la boca la anima [mouthOverride].
- * 2. Cariño ([expression] = Loved): ojos con corazón y boca de beso.
- * 3. Reposo ([expression] = Neutral): ojos y boca base.
+ * 1. Cariño ([expression] = Loved): ojos con corazón y boca de beso.
+ * 2. Hablando ([isSpeaking]): ojos normales abiertos; la boca la anima [mouthOverride].
+ * 3. Parpadeo ([isBlinking]): ojos cerrados un instante.
+ * 4. Base: ojos y boca base.
  *
  * [mouthOverride] permite forzar la boca (por ejemplo, al hablar).
- * Con [isSpeaking] = false (valor por defecto) los ojos son siempre los de [expression].
+ * Con [isSpeaking] e [isBlinking] en false (valores por defecto) los ojos son los de [expression].
  *
  * Los dos brazos son dibujos distintos (no son espejo exacto), por eso se usan dos imágenes.
  */
@@ -53,8 +54,14 @@ fun NaoVTAvatar(
     modifier: Modifier = Modifier,
     mouthOverride: NaoMouth? = null,
     isSpeaking: Boolean = false,
+    isBlinking: Boolean = false,
 ) {
-    val eyes = if (isSpeaking) NaoExpression.Neutral.eyes else expression.eyes
+    val eyes = when {
+        expression == NaoExpression.Loved -> expression.eyes
+        isSpeaking -> NaoExpression.Neutral.eyes
+        isBlinking -> R.drawable.ojos_feliz_cerrando
+        else -> expression.eyes
+    }
     Box(modifier = modifier.aspectRatio(LAYER_ASPECT_RATIO)) {
         AvatarLayer(R.drawable.nao_base, stringResource(R.string.nao_description))
         AvatarLayer(R.drawable.nao_brazo_izquierdo_base)

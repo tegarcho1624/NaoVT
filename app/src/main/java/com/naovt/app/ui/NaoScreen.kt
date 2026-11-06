@@ -35,6 +35,7 @@ import com.naovt.app.ui.avatar.NaoExpression
 import com.naovt.app.ui.avatar.NaoMouth
 import com.naovt.app.dialog.NaoPhrases
 import com.naovt.app.ui.avatar.NaoVTAvatar
+import com.naovt.app.ui.avatar.rememberBlink
 import com.naovt.app.ui.avatar.rememberTalkingMouth
 import com.naovt.app.ui.room.Room
 import com.naovt.app.ui.room.RoomBackground
@@ -59,6 +60,10 @@ fun NaoScreen(
 
     val context = LocalContext.current
     val voice = rememberNaoVoice()
+    // Parpadea solo en estado base: sin hablar y sin cara de cariño.
+    val isBlinking = rememberBlink(
+        canBlink = !voice.isSpeaking && expression == NaoExpression.Neutral,
+    )
     val talkingMouth = rememberTalkingMouth(voice.isSpeaking, openMouth = NaoMouth.Happy)
 
     // Avisa si el teléfono no puede hablar (sin voz en español o sin motor TTS).
@@ -90,6 +95,7 @@ fun NaoScreen(
             expression = expression,
             mouthOverride = talkingMouth,
             isSpeaking = voice.isSpeaking,
+            isBlinking = isBlinking,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxHeight(0.85f)

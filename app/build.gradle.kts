@@ -12,8 +12,8 @@ android {
         applicationId = "com.naovt.app"
         minSdk = 24
         targetSdk = 34
-        versionCode = 6
-        versionName = "0.6.0-expresiones"
+        versionCode = 7
+        versionName = "0.7.0-parpadeo"
     }
 
     buildTypes {
@@ -42,5 +42,7 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-core")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.6")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.6")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.6")
     implementation("io.coil-kt:coil-compose:2.7.0")
 }

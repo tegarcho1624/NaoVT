@@ -1,7 +1,9 @@
 package com.naovt.app.overlay
 
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.IntentFilter
 import android.content.Intent
 import android.content.res.Configuration
 import android.content.pm.ServiceInfo
@@ -11,6 +13,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.PowerManager
 import android.os.SystemClock
 import android.provider.Settings
 import android.util.Log
@@ -21,6 +24,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.app.ServiceCompat
+import androidx.core.content.ContextCompat
+import kotlin.random.Random
 import kotlin.math.min
 import kotlin.math.roundToInt
 import com.naovt.app.MainActivity
@@ -55,8 +60,12 @@ class NaoOverlayService : Service() {
     private var lastPhrase: String? = null
     private var talkWaitUntil = 0L
 
+    // Cariño activo (no se parpadea mientras dura).
+    private var lovedActive = false
+
     // Terminó el cariño: vuelve a la normalidad y entonces dice su frase.
     private val afterLove = Runnable {
+        lovedActive = false
         overlay?.setLoved(false)
         if (OVERLAY_SPEAKS) speakPhrase()
     }
@@ -125,6 +134,8 @@ class NaoOverlayService : Service() {
         }
         overlay = null
         layoutParams = null
+        if (screenReceiverRegistered) runCatching { unregisterReceiver(screenReceiver) }
+        screenReceiverRegistered = false
         releaseVoice.run()
         isRunning = false
         super.onDestroy()
@@ -200,6 +211,7 @@ class NaoOverlayService : Service() {
         overlay = view
         layoutParams = params
         moveTo(params.x, params.y) // por si la posición guardada quedó fuera de pantalla
+        startBlinking()
     }
 
     private fun moveTo(x: Int, y: Int) {
@@ -261,6 +273,59 @@ class NaoOverlayService : Service() {
 
     // endregion
 
+    // region Parpadeo
+
+    private var screenReceiverRegistered = false
+
+    // Con la pantalla apagada se detiene el parpadeo; al encenderla se reanuda.
+    private val screenReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            when (intent.action) {
+                Intent.ACTION_SCREEN_OFF -> stopBlinking()
+                Intent.ACTION_SCREEN_ON -> scheduleBlink()
+            }
+        }
+    }
+
+    private val blinkTick = Runnable {
+        val view = overlay ?: return@Runnable
+        // Solo parpadea en estado base: sin cariño y sin hablar.
+        if (!lovedActive && voice?.isSpeaking != true) {
+            view.setBlinking(true)
+            handler.postDelayed(openEyes, BLINK_DURATION_MS)
+        }
+        scheduleBlink()
+    }
+    private val openEyes = Runnable { overlay?.setBlinking(false) }
+
+    private fun startBlinking() {
+        if (!OVERLAY_BLINKS) return
+        ContextCompat.registerReceiver(
+            this,
+            screenReceiver,
+            IntentFilter().apply {
+                addAction(Intent.ACTION_SCREEN_OFF)
+                addAction(Intent.ACTION_SCREEN_ON)
+            },
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
+        screenReceiverRegistered = true
+        if (getSystemService(PowerManager::class.java).isInteractive) scheduleBlink()
+    }
+
+    private fun scheduleBlink() {
+        handler.removeCallbacks(blinkTick)
+        handler.postDelayed(blinkTick, Random.nextLong(BLINK_MIN_WAIT_MS, BLINK_MAX_WAIT_MS))
+    }
+
+    private fun stopBlinking() {
+        handler.removeCallbacks(blinkTick)
+        handler.removeCallbacks(openEyes)
+        overlay?.setBlinking(false)
+    }
+
+    // endregion
+
     // region Posición recordada
 
     private fun loadPosition(): Point {
@@ -301,6 +366,7 @@ class NaoOverlayService : Service() {
         }
 
         // Cariño: cara de beso por 2 segundos (cada toque reinicia el tiempo) y luego habla.
+        lovedActive = true
         view.setLoved(true)
         handler.removeCallbacks(afterLove)
         handler.postDelayed(afterLove, LOVED_DURATION_MS)
@@ -366,6 +432,12 @@ class NaoOverlayService : Service() {
 
         /** false = Nao flotante muda (solo cara de beso). */
         private const val OVERLAY_SPEAKS = true
+
+        /** false = Nao flotante no parpadea. */
+        private const val OVERLAY_BLINKS = true
+        private const val BLINK_MIN_WAIT_MS = 3000L
+        private const val BLINK_MAX_WAIT_MS = 6000L
+        private const val BLINK_DURATION_MS = 150L
 
         private const val LOVED_DURATION_MS = 2000L
         private const val MOUTH_TOGGLE_MS = 140L

@@ -56,6 +56,7 @@ class NaoOverlayView(context: Context, initialHeightPx: Int) : FrameLayout(conte
 
     private var loved = false
     private var talkingMouthOpen: Boolean? = null
+    private var blinking = false
 
     // Gestos
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
@@ -107,6 +108,12 @@ class NaoOverlayView(context: Context, initialHeightPx: Int) : FrameLayout(conte
         refreshFace()
     }
 
+    /** Parpadeo: ojos cerrados un instante (solo se nota si Nao está en estado base). */
+    fun setBlinking(value: Boolean) {
+        blinking = value
+        refreshFace()
+    }
+
     /** Hablando: true/false alterna boca abierta/cerrada con ojos normales; null = no está hablando. */
     fun setTalkingMouth(open: Boolean?) {
         talkingMouthOpen = open
@@ -144,17 +151,21 @@ class NaoOverlayView(context: Context, initialHeightPx: Int) : FrameLayout(conte
         ImageView(context).apply { scaleType = ImageView.ScaleType.FIT_CENTER }
             .also { addView(it, FrameLayout.LayoutParams(MATCH_PARENT_PX, MATCH_PARENT_PX)) }
 
-    /** Prioridad: hablando > cariño > reposo (igual que NaoVTAvatar). */
+    /** Prioridad: cariño > hablando > parpadeo > base (igual que NaoVTAvatar). */
     private fun refreshFace() {
         val talking = talkingMouthOpen
         val eyes: Int
         val mouth: Int
-        if (talking != null) {
-            eyes = R.drawable.ojos_base
-            mouth = if (talking) R.drawable.boca_abierta_feliz else R.drawable.boca_base
-        } else {
-            eyes = if (loved) R.drawable.ojos_corazon_mejilla else R.drawable.ojos_base
-            mouth = if (loved) R.drawable.boca_besando else R.drawable.boca_base
+        eyes = when {
+            loved -> R.drawable.ojos_corazon_mejilla
+            talking != null -> R.drawable.ojos_base
+            blinking -> R.drawable.ojos_feliz_cerrando
+            else -> R.drawable.ojos_base
+        }
+        mouth = when {
+            talking != null -> if (talking) R.drawable.boca_abierta_feliz else R.drawable.boca_base
+            loved -> R.drawable.boca_besando
+            else -> R.drawable.boca_base
         }
         bitmaps[eyes]?.let { eyesLayer.setImageBitmap(it) }
         bitmaps[mouth]?.let { mouthLayer.setImageBitmap(it) }
@@ -241,6 +252,7 @@ class NaoOverlayView(context: Context, initialHeightPx: Int) : FrameLayout(conte
             R.drawable.boca_base,
             R.drawable.boca_besando,
             R.drawable.boca_abierta_feliz,
+            R.drawable.ojos_feliz_cerrando,
         )
     }
 }
