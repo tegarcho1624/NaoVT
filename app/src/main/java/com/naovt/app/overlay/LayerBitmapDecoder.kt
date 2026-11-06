@@ -11,16 +11,24 @@ import androidx.annotation.DrawableRes
  */
 internal object LayerBitmapDecoder {
 
-    fun decode(resources: Resources, @DrawableRes resId: Int, targetHeightPx: Int): Bitmap {
+    /** Alto original (en píxeles) del PNG, sin cargarlo completo en memoria. */
+    fun sourceHeight(resources: Resources, @DrawableRes resId: Int): Int {
         val bounds = BitmapFactory.Options().apply {
             inJustDecodeBounds = true
             inScaled = false
         }
         BitmapFactory.decodeResource(resources, resId, bounds)
+        return bounds.outHeight
+    }
 
+    /** Mayor reducción (potencia de 2) que aún deja la imagen con al menos [targetHeightPx] de alto. */
+    fun sampleSizeFor(sourceHeight: Int, targetHeightPx: Int): Int {
         var sampleSize = 1
-        while (bounds.outHeight / (sampleSize * 2) >= targetHeightPx) sampleSize *= 2
+        while (sourceHeight / (sampleSize * 2) >= targetHeightPx) sampleSize *= 2
+        return sampleSize
+    }
 
+    fun decode(resources: Resources, @DrawableRes resId: Int, sampleSize: Int): Bitmap {
         val options = BitmapFactory.Options().apply {
             inSampleSize = sampleSize
             inScaled = false // sin esto Android agranda la imagen según la densidad de pantalla

@@ -21,6 +21,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.app.ServiceCompat
+import kotlin.math.min
+import kotlin.math.roundToInt
 import com.naovt.app.MainActivity
 import com.naovt.app.R
 import com.naovt.app.dialog.NaoPhrases
@@ -28,6 +30,8 @@ import com.naovt.app.voice.NaoVoice
 
 /**
  * Servicio en primer plano que dibuja a Nao flotando sobre otras apps con WindowManager.
+ *
+ * Tamaño: se cambia pellizcando (entre [MIN_WIDTH_DP] y [MAX_WIDTH_DP]) y se recuerda.
  *
  * Cuidado de batería:
  * - START_NOT_STICKY: si el sistema lo cierra, no se reinicia solo.
@@ -43,6 +47,9 @@ class NaoOverlayService : Service() {
     private var overlay: NaoOverlayView? = null
     private var layoutParams: WindowManager.LayoutParams? = null
     private var overlaySize = Point(0, 0)
+    private var widthPx = 0f
+    private var minWidthPx = 0f
+    private var maxWidthPx = 0f
 
     private var voice: NaoVoice? = null
     private var lastPhrase: String? = null
@@ -100,7 +107,9 @@ class NaoOverlayService : Service() {
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        // Rotación: mantener a Nao dentro de la pantalla.
+        // Rotación: ajustar los límites de tamaño y mantener a Nao dentro de la pantalla.
+        refreshSizeLimits()
+        resizeBy(1f)
         moveTo(layoutParams?.x ?: 0, layoutParams?.y ?: 0)
     }
 
@@ -125,12 +134,15 @@ class NaoOverlayService : Service() {
             return
         }
 
-        val heightPx = dp(OVERLAY_HEIGHT_DP)
-        val widthPx = heightPx * 2 / 3 // las capas son 1024x1536
-        overlaySize = Point(widthPx, heightPx)
+        // Tamaño guardado (o el predeterminado), dentro de los límites.
+        refreshSizeLimits()
+        val savedWidthDp = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getFloat(KEY_WIDTH_DP, DEFAULT_WIDTH_DP)
+        widthPx = (savedWidthDp * resources.displayMetrics.density).coerceIn(minWidthPx, maxWidthPx)
+        overlaySize = Point(widthPx.roundToInt(), (widthPx * LAYER_ASPECT).roundToInt())
 
         val view = try {
-            NaoOverlayView(this, heightPx)
+            NaoOverlayView(this, overlaySize.y)
         } catch (e: Exception) {
             Log.e(TAG, "No se pudo crear la vista flotante", e)
             fail(R.string.overlay_failed)
@@ -150,8 +162,8 @@ class NaoOverlayService : Service() {
         // La ventana mide exactamente lo que Nao: los toques fuera de ella pasan a la app de abajo.
         // NOT_FOCUSABLE evita robar el teclado/foco; NOT_TOUCH_MODAL deja pasar los toques de afuera.
         val params = WindowManager.LayoutParams(
-            widthPx,
-            heightPx,
+            overlaySize.x,
+            overlaySize.y,
             type,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
@@ -168,7 +180,9 @@ class NaoOverlayService : Service() {
         view.onOpenApp = ::openApp
         view.positionProvider = { Point(params.x, params.y) }
         view.onMove = ::moveTo
-        view.onMoveEnd = ::savePosition
+        view.onMoveEnd = ::savePlacement
+        view.onScale = ::resizeBy
+        view.onScaleEnd = ::onResizeEnd
 
         try {
             windowManager.addView(view, params)
@@ -191,6 +205,43 @@ class NaoOverlayService : Service() {
         params.x = x.coerceIn(0, (screen.x - overlaySize.x).coerceAtLeast(0))
         params.y = y.coerceIn(0, (screen.y - overlaySize.y).coerceAtLeast(0))
         runCatching { windowManager.updateViewLayout(view, params) }
+    }
+
+    /** Pellizco: cambia el ancho de Nao por [factor], manteniendo su centro en el mismo lugar. */
+    private fun resizeBy(factor: Float) {
+        val params = layoutParams ?: return
+        val newWidth = (widthPx * factor).coerceIn(minWidthPx, maxWidthPx)
+        if (newWidth == widthPx) return
+
+        val centerX = params.x + overlaySize.x / 2f
+        val centerY = params.y + overlaySize.y / 2f
+
+        widthPx = newWidth
+        overlaySize = Point(newWidth.roundToInt(), (newWidth * LAYER_ASPECT).roundToInt())
+        params.width = overlaySize.x
+        params.height = overlaySize.y
+        // moveTo aplica el nuevo tamaño y la deja dentro de la pantalla.
+        moveTo(
+            (centerX - overlaySize.x / 2f).roundToInt(),
+            (centerY - overlaySize.y / 2f).roundToInt(),
+        )
+    }
+
+    /** Al soltar el pellizco: recuerda el tamaño y ajusta la calidad de las imágenes. */
+    private fun onResizeEnd() {
+        overlay?.updateResolution(overlaySize.y)
+        savePlacement()
+    }
+
+    /** Límites del ancho: entre MIN y MAX dp, y nunca más grande que la pantalla. */
+    private fun refreshSizeLimits() {
+        val density = resources.displayMetrics.density
+        val screen = screenSize()
+        minWidthPx = MIN_WIDTH_DP * density
+        maxWidthPx = maxOf(
+            minWidthPx,
+            min(MAX_WIDTH_DP * density, min(screen.x.toFloat(), screen.y / LAYER_ASPECT)),
+        )
     }
 
     private fun screenSize(): Point =
@@ -221,11 +272,13 @@ class NaoOverlayService : Service() {
         )
     }
 
-    private fun savePosition() {
+    /** Guarda posición y tamaño para la próxima vez que se active el Modo Flotante. */
+    private fun savePlacement() {
         val params = layoutParams ?: return
         getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
             .putInt(KEY_X, params.x)
             .putInt(KEY_Y, params.y)
+            .putFloat(KEY_WIDTH_DP, widthPx / resources.displayMetrics.density)
             .apply()
     }
 
@@ -294,8 +347,13 @@ class NaoOverlayService : Service() {
         private const val KEY_X = "x"
         private const val KEY_Y = "y"
 
-        /** Alto de Nao flotante. Cámbialo para hacerla más grande o pequeña. */
-        private const val OVERLAY_HEIGHT_DP = 200
+        private const val KEY_WIDTH_DP = "width_dp"
+
+        /** Ancho inicial y límites del pellizco (en dp). Las capas miden 1024x1536. */
+        private const val DEFAULT_WIDTH_DP = 133f
+        private const val MIN_WIDTH_DP = 100f
+        private const val MAX_WIDTH_DP = 300f
+        private const val LAYER_ASPECT = 1536f / 1024f
 
         /** false = Nao flotante muda (solo cara de beso). */
         private const val OVERLAY_SPEAKS = true
