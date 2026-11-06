@@ -12,10 +12,15 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import com.naovt.app.R
 
-/** Bocas disponibles. [Open] usa por ahora la boca de beso ("3"), que sirve para simular hablar. */
+/**
+ * Bocas disponibles.
+ * - [Open] es la boca de beso ("3"), parte de la cara de cariño.
+ * - [Happy] es la boca abierta feliz, que se alterna con [Closed] al hablar.
+ */
 enum class NaoMouth(@DrawableRes val drawable: Int) {
     Closed(R.drawable.boca_base),
     Open(R.drawable.boca_besando),
+    Happy(R.drawable.boca_abierta_feliz),
 }
 
 /** Expresión facial de Nao: define qué capas de ojos y boca se muestran. */
@@ -32,7 +37,13 @@ private const val LAYER_ASPECT_RATIO = 1024f / 1536f
  * Orden (de abajo hacia arriba): cuerpo -> brazo izq. -> brazo der. -> pecho -> ojos -> boca.
  * El fondo se dibuja afuera (ver RoomBackground), siempre debajo de este componente.
  *
- * [mouthOverride] permite forzar la boca (por ejemplo, al hablar) sin cambiar los ojos.
+ * Estados de la cara (de mayor a menor prioridad):
+ * 1. Hablando ([isSpeaking]): ojos normales abiertos; la boca la anima [mouthOverride].
+ * 2. Cariño ([expression] = Loved): ojos con corazón y boca de beso.
+ * 3. Reposo ([expression] = Neutral): ojos y boca base.
+ *
+ * [mouthOverride] permite forzar la boca (por ejemplo, al hablar).
+ * Con [isSpeaking] = false (valor por defecto) los ojos son siempre los de [expression].
  *
  * Los dos brazos son dibujos distintos (no son espejo exacto), por eso se usan dos imágenes.
  */
@@ -41,13 +52,15 @@ fun NaoVTAvatar(
     expression: NaoExpression,
     modifier: Modifier = Modifier,
     mouthOverride: NaoMouth? = null,
+    isSpeaking: Boolean = false,
 ) {
+    val eyes = if (isSpeaking) NaoExpression.Neutral.eyes else expression.eyes
     Box(modifier = modifier.aspectRatio(LAYER_ASPECT_RATIO)) {
         AvatarLayer(R.drawable.nao_base, stringResource(R.string.nao_description))
         AvatarLayer(R.drawable.nao_brazo_izquierdo_base)
         AvatarLayer(R.drawable.nao_brazo_derecho_base)
         AvatarLayer(R.drawable.pecho_base)
-        AvatarLayer(expression.eyes)
+        AvatarLayer(eyes)
         AvatarLayer((mouthOverride ?: expression.mouth).drawable)
     }
 }

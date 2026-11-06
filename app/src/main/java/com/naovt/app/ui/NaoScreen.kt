@@ -32,6 +32,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.naovt.app.R
 import com.naovt.app.ui.avatar.NaoExpression
+import com.naovt.app.ui.avatar.NaoMouth
 import com.naovt.app.dialog.NaoPhrases
 import com.naovt.app.ui.avatar.NaoVTAvatar
 import com.naovt.app.ui.avatar.rememberTalkingMouth
@@ -54,10 +55,11 @@ fun NaoScreen(
     var tapCount by remember { mutableIntStateOf(0) }
     var expression by remember { mutableStateOf(NaoExpression.Neutral) }
     var lastPhrase by remember { mutableStateOf<String?>(null) }
+    var pendingPhrase by remember { mutableStateOf<String?>(null) }
 
     val context = LocalContext.current
     val voice = rememberNaoVoice()
-    val talkingMouth = rememberTalkingMouth(voice.isSpeaking)
+    val talkingMouth = rememberTalkingMouth(voice.isSpeaking, openMouth = NaoMouth.Happy)
 
     // Avisa si el teléfono no puede hablar (sin voz en español o sin motor TTS).
     LaunchedEffect(voice.problem) {
@@ -69,12 +71,15 @@ fun NaoScreen(
         Toast.makeText(context, message, Toast.LENGTH_LONG).show()
     }
 
-    // Cada toque reinicia este efecto: cara de cariño 2 s y luego vuelve a la normalidad.
+    // Cariño: cara de beso 2 s, vuelve a la normalidad y entonces Nao dice su frase.
+    // Cada toque reinicia el efecto. Hablar y dar cariño nunca se muestran a la vez.
     LaunchedEffect(tapCount) {
         if (tapCount > 0) {
             expression = NaoExpression.Loved
             delay(LOVED_DURATION_MS)
             expression = NaoExpression.Neutral
+            pendingPhrase?.let { voice.speak(it) }
+            pendingPhrase = null
         }
     }
 
@@ -84,15 +89,21 @@ fun NaoScreen(
         NaoVTAvatar(
             expression = expression,
             mouthOverride = talkingMouth,
+            isSpeaking = voice.isSpeaking,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxHeight(0.85f)
                 .pointerInput(Unit) {
                     detectTapGestures {
-                        tapCount++ // cara de cariño
                         val phrase = NaoPhrases.random(previous = lastPhrase)
                         lastPhrase = phrase
-                        voice.speak(phrase) // corta la frase anterior si seguía hablando
+                        if (voice.isSpeaking) {
+                            // Ya está hablando: corta la frase anterior y sigue con la nueva (sin cariño).
+                            voice.speak(phrase)
+                        } else {
+                            pendingPhrase = phrase
+                            tapCount++ // cariño primero; la frase se dice al terminar
+                        }
                     }
                 },
         )

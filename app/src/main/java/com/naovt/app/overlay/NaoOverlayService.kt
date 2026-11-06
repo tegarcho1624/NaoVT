@@ -55,7 +55,11 @@ class NaoOverlayService : Service() {
     private var lastPhrase: String? = null
     private var talkWaitUntil = 0L
 
-    private val resetLoved = Runnable { overlay?.setLoved(false) }
+    // Terminó el cariño: vuelve a la normalidad y entonces dice su frase.
+    private val afterLove = Runnable {
+        overlay?.setLoved(false)
+        if (OVERLAY_SPEAKS) speakPhrase()
+    }
     private val releaseVoice = Runnable {
         voice?.shutdown()
         voice = null
@@ -289,12 +293,17 @@ class NaoOverlayService : Service() {
     private fun onNaoTapped() {
         val view = overlay ?: return
 
-        // Cara de beso por 2 segundos (cada toque reinicia el tiempo).
-        view.setLoved(true)
-        handler.removeCallbacks(resetLoved)
-        handler.postDelayed(resetLoved, LOVED_DURATION_MS)
+        // Si ya está hablando, corta y sigue con otra frase (hablar y cariño no se mezclan).
+        if (OVERLAY_SPEAKS && voice?.isSpeaking == true) {
+            handler.removeCallbacks(afterLove)
+            speakPhrase()
+            return
+        }
 
-        if (OVERLAY_SPEAKS) speakPhrase()
+        // Cariño: cara de beso por 2 segundos (cada toque reinicia el tiempo) y luego habla.
+        view.setLoved(true)
+        handler.removeCallbacks(afterLove)
+        handler.postDelayed(afterLove, LOVED_DURATION_MS)
     }
 
     private fun speakPhrase() {

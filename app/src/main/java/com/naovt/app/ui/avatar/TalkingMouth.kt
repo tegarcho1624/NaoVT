@@ -12,11 +12,14 @@ private const val MOUTH_TOGGLE_MS = 140L
 
 /**
  * Sincronización simple de la boca: mientras [isSpeaking] sea true alterna
- * entre boca cerrada y boca de beso. Devuelve null cuando no habla
- * (así el avatar usa la boca de su expresión normal).
+ * entre boca cerrada y [openMouth]. Devuelve null cuando no habla
+ * (así el avatar vuelve de inmediato a la boca de su expresión).
  */
 @Composable
-fun rememberTalkingMouth(isSpeaking: Boolean): NaoMouth? {
+fun rememberTalkingMouth(
+    isSpeaking: Boolean,
+    openMouth: NaoMouth = NaoMouth.Open,
+): NaoMouth? {
     var open by remember { mutableStateOf(false) }
 
     LaunchedEffect(isSpeaking) {
@@ -32,7 +35,7 @@ fun rememberTalkingMouth(isSpeaking: Boolean): NaoMouth? {
 
     return when {
         !isSpeaking -> null
-        open -> NaoMouth.Open
+        open -> openMouth
         else -> NaoMouth.Closed
     }
 }

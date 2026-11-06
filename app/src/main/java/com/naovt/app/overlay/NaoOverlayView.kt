@@ -107,7 +107,7 @@ class NaoOverlayView(context: Context, initialHeightPx: Int) : FrameLayout(conte
         refreshFace()
     }
 
-    /** Boca al hablar: true/false alterna abierta/cerrada; null = la boca de la expresión actual. */
+    /** Hablando: true/false alterna boca abierta/cerrada con ojos normales; null = no está hablando. */
     fun setTalkingMouth(open: Boolean?) {
         talkingMouthOpen = open
         refreshFace()
@@ -144,10 +144,18 @@ class NaoOverlayView(context: Context, initialHeightPx: Int) : FrameLayout(conte
         ImageView(context).apply { scaleType = ImageView.ScaleType.FIT_CENTER }
             .also { addView(it, FrameLayout.LayoutParams(MATCH_PARENT_PX, MATCH_PARENT_PX)) }
 
+    /** Prioridad: hablando > cariño > reposo (igual que NaoVTAvatar). */
     private fun refreshFace() {
-        val eyes = if (loved) R.drawable.ojos_corazon_mejilla else R.drawable.ojos_base
-        val mouthIsOpen = talkingMouthOpen ?: loved
-        val mouth = if (mouthIsOpen) R.drawable.boca_besando else R.drawable.boca_base
+        val talking = talkingMouthOpen
+        val eyes: Int
+        val mouth: Int
+        if (talking != null) {
+            eyes = R.drawable.ojos_base
+            mouth = if (talking) R.drawable.boca_abierta_feliz else R.drawable.boca_base
+        } else {
+            eyes = if (loved) R.drawable.ojos_corazon_mejilla else R.drawable.ojos_base
+            mouth = if (loved) R.drawable.boca_besando else R.drawable.boca_base
+        }
         bitmaps[eyes]?.let { eyesLayer.setImageBitmap(it) }
         bitmaps[mouth]?.let { mouthLayer.setImageBitmap(it) }
     }
@@ -232,6 +240,7 @@ class NaoOverlayView(context: Context, initialHeightPx: Int) : FrameLayout(conte
             R.drawable.ojos_corazon_mejilla,
             R.drawable.boca_base,
             R.drawable.boca_besando,
+            R.drawable.boca_abierta_feliz,
         )
     }
 }
