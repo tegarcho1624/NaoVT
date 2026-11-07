@@ -32,6 +32,7 @@ import com.naovt.app.MainActivity
 import com.naovt.app.R
 import com.naovt.app.dialog.NaoPhrases
 import com.naovt.app.voice.NaoVoice
+import com.naovt.app.voice.VoicePreferences
 
 /**
  * Servicio en primer plano que dibuja a Nao flotando sobre otras apps con WindowManager.
@@ -59,6 +60,10 @@ class NaoOverlayService : Service() {
     private var voice: NaoVoice? = null
     private var lastPhrase: String? = null
     private var talkWaitUntil = 0L
+
+    // Menú radial (mantener presionado a Nao).
+    private var menuView: RadialMenuView? = null
+    private val closeMenuRunnable = Runnable { closeMenu() }
 
     // Cariño activo (no se parpadea mientras dura).
     private var lovedActive = false
@@ -120,6 +125,7 @@ class NaoOverlayService : Service() {
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
+        closeMenu()
         // Rotación: ajustar los límites de tamaño y mantener a Nao dentro de la pantalla.
         refreshSizeLimits()
         resizeBy(1f)
@@ -128,6 +134,7 @@ class NaoOverlayService : Service() {
 
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
+        closeMenu()
         overlay?.let { view ->
             runCatching { windowManager.removeView(view) }
             view.release()
@@ -192,7 +199,8 @@ class NaoOverlayService : Service() {
         }
 
         view.onTap = ::onNaoTapped
-        view.onOpenApp = ::openApp
+        view.onOpenApp = { openApp() }
+        view.onLongPress = ::showMenu
         view.positionProvider = { Point(params.x, params.y) }
         view.onMove = ::moveTo
         view.onMoveEnd = ::savePlacement
@@ -281,7 +289,10 @@ class NaoOverlayService : Service() {
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.action) {
-                Intent.ACTION_SCREEN_OFF -> stopBlinking()
+                Intent.ACTION_SCREEN_OFF -> {
+                    stopBlinking()
+                    closeMenu()
+                }
                 Intent.ACTION_SCREEN_ON -> scheduleBlink()
             }
         }
@@ -373,6 +384,8 @@ class NaoOverlayService : Service() {
     }
 
     private fun speakPhrase() {
+        // Voz silenciada desde el menú: no se crea el motor ni se gasta batería.
+        if (!VoicePreferences.isEnabled(this)) return
         val engine = voice ?: NaoVoice(this).also { voice = it }
         val phrase = NaoPhrases.random(previous = lastPhrase)
         lastPhrase = phrase
@@ -387,9 +400,11 @@ class NaoOverlayService : Service() {
         handler.postDelayed(releaseVoice, VOICE_IDLE_RELEASE_MS)
     }
 
-    private fun openApp() {
+    /** Abre la app. Con [destination] abre directo en esa pantalla (Baúl, Alertas...). */
+    private fun openApp(destination: String? = null) {
         val intent = Intent(this, MainActivity::class.java)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        if (destination != null) intent.putExtra(MainActivity.EXTRA_DESTINATION, destination)
         try {
             startActivity(intent)
         } catch (e: Exception) {
@@ -397,6 +412,113 @@ class NaoOverlayService : Service() {
             Toast.makeText(this, R.string.overlay_open_blocked, Toast.LENGTH_LONG).show()
         }
     }
+
+    // endregion
+
+    // region Menú radial
+
+    /** Opciones del menú. Reservados para el futuro: Closet, Música y Minijuegos. */
+    private fun buildMenuItems(): List<RadialMenuItem> {
+        val voiceOn = VoicePreferences.isEnabled(this)
+        return listOf(
+            RadialMenuItem("home", R.drawable.ic_menu_home, R.string.menu_home) { openApp() },
+            RadialMenuItem("vault", R.drawable.ic_menu_vault, R.string.menu_vault) {
+                openApp(MainActivity.DESTINATION_VAULT)
+            },
+            RadialMenuItem("talk", R.drawable.ic_menu_talk, R.string.menu_talk) {
+                // Pendiente: aquí irá el chat con Nao (API).
+                Toast.makeText(this, R.string.menu_talk_soon, Toast.LENGTH_SHORT).show()
+            },
+            RadialMenuItem("alerts", R.drawable.ic_menu_alerts, R.string.menu_alerts) {
+                openApp(MainActivity.DESTINATION_ALERTS)
+            },
+            RadialMenuItem(
+                "voice",
+                if (voiceOn) R.drawable.ic_menu_voice_on else R.drawable.ic_menu_voice_off,
+                R.string.menu_voice,
+            ) { toggleVoice() },
+            RadialMenuItem("stop", R.drawable.ic_menu_stop, R.string.menu_stop) { stopSelf() },
+        )
+    }
+
+    private fun showMenu() {
+        val params = layoutParams ?: return
+        if (overlay == null || menuView != null) return
+
+        val buttonSize = dp(MENU_BUTTON_DP)
+        val labelHeight = dp(MENU_LABEL_DP)
+        val margin = dp(MENU_MARGIN_DP)
+        val screen = screenSize()
+
+        // Radio: rodea a Nao, pero siempre cabe en la pantalla.
+        val maxRadius = min(screen.x, screen.y) / 2f - buttonSize / 2f - margin - labelHeight
+        val wantedRadius = maxOf(overlaySize.x, overlaySize.y) / 2f + buttonSize * 0.4f
+        val radius = wantedRadius.coerceAtLeast(buttonSize * 1.5f).coerceAtMost(maxRadius)
+
+        // Centro: el de Nao, movido lo justo si está cerca de un borde.
+        val edge = radius + buttonSize / 2f + margin
+        val centerX = (params.x + overlaySize.x / 2f).coerceIn(edge, maxOf(edge, screen.x - edge))
+        val centerY = (params.y + overlaySize.y / 2f)
+            .coerceIn(edge, maxOf(edge, screen.y - edge - labelHeight))
+
+        val view = RadialMenuView(
+            context = this,
+            items = buildMenuItems(),
+            centerX = centerX,
+            centerY = centerY,
+            radiusPx = radius,
+            buttonSizePx = buttonSize,
+            onDismiss = ::closeMenu,
+        )
+        val menuParams = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
+            overlayWindowType(),
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT,
+        ).apply { gravity = Gravity.TOP or Gravity.START }
+
+        try {
+            windowManager.addView(view, menuParams)
+        } catch (e: Exception) {
+            Log.e(TAG, "No se pudo mostrar el menú radial", e)
+            return
+        }
+        menuView = view
+        // Seguro: si se olvida abierto, se cierra solo (mientras está abierto cubre la pantalla).
+        handler.removeCallbacks(closeMenuRunnable)
+        handler.postDelayed(closeMenuRunnable, MENU_TIMEOUT_MS)
+    }
+
+    private fun closeMenu() {
+        handler.removeCallbacks(closeMenuRunnable)
+        menuView?.let { runCatching { windowManager.removeView(it) } }
+        menuView = null
+    }
+
+    private fun toggleVoice() {
+        val enabled = !VoicePreferences.isEnabled(this)
+        VoicePreferences.setEnabled(this, enabled)
+        if (!enabled) {
+            // Corta lo que estuviera diciendo y libera el motor de voz.
+            releaseVoice.run()
+            overlay?.setTalkingMouth(null)
+        }
+        Toast.makeText(
+            this,
+            if (enabled) R.string.menu_voice_enabled else R.string.menu_voice_muted,
+            Toast.LENGTH_SHORT,
+        ).show()
+    }
+
+    private fun overlayWindowType(): Int =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+        } else {
+            @Suppress("DEPRECATION")
+            WindowManager.LayoutParams.TYPE_PHONE
+        }
 
     // endregion
 
@@ -438,6 +560,12 @@ class NaoOverlayService : Service() {
         private const val BLINK_MIN_WAIT_MS = 3000L
         private const val BLINK_MAX_WAIT_MS = 6000L
         private const val BLINK_DURATION_MS = 150L
+
+        // Menú radial
+        private const val MENU_BUTTON_DP = 52
+        private const val MENU_LABEL_DP = 18
+        private const val MENU_MARGIN_DP = 8
+        private const val MENU_TIMEOUT_MS = 8000L
 
         private const val LOVED_DURATION_MS = 2000L
         private const val MOUTH_TOGGLE_MS = 140L

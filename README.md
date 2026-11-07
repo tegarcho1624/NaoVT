@@ -1,4 +1,4 @@
-# NaoVT — Fase 5 (Modo Flotante redimensionable)
+# NaoVT — Fase 8 (Menú radial del Modo Flotante)
 
 Mascota virtual Naomi en Android (Jetpack Compose, tema oscuro).
 
@@ -10,6 +10,7 @@ Mascota virtual Naomi en Android (Jetpack Compose, tema oscuro).
 - Boca al hablar: `ui/avatar/TalkingMouth.kt`
 - Baúl: `ui/vault/` (pantalla, cuadrícula, detalle, diálogo) y `data/` (copia de fotos + JSON en SharedPreferences)
 - Modo Flotante (pellizca para cambiar el tamaño, 100–300 dp): `overlay/` (servicio en primer plano, vista flotante con las capas, permisos y notificación)
+- Menú radial (mantener presionado a Nao flotante): `overlay/RadialMenuView.kt`; opciones en `buildMenuItems()` del servicio
 - Assets en `app/src/main/res/drawable/`
 
 APK: sube a GitHub y revisa Actions → *Build APK* → artefacto `NaoVT-debug-apk`.

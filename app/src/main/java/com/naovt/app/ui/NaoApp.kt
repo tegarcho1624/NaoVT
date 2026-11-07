@@ -7,23 +7,40 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import com.naovt.app.MainActivity
 import com.naovt.app.overlay.NaoOverlayService
 import com.naovt.app.overlay.rememberOverlayController
+import com.naovt.app.ui.alerts.AlertsScreen
 import com.naovt.app.ui.vault.VaultScreen
 
 /**
- * Raíz de la app. El Baúl se dibuja encima de la pantalla principal, que se queda viva por
- * debajo (así conserva la habitación elegida al volver).
+ * Raíz de la app. El Baúl y Alertas se dibujan encima de la pantalla principal, que se queda
+ * viva por debajo (así conserva la habitación elegida al volver).
+ *
+ * [destination] permite abrir directo en una pantalla (lo usa el menú radial del Modo Flotante).
  */
 @Composable
-fun NaoApp() {
+fun NaoApp(
+    destination: String? = null,
+    onDestinationHandled: () -> Unit = {},
+) {
     var vaultOpen by rememberSaveable { mutableStateOf(false) }
+    var alertsOpen by rememberSaveable { mutableStateOf(false) }
     val overlay = rememberOverlayController()
+
+    LaunchedEffect(destination) {
+        when (destination) {
+            MainActivity.DESTINATION_VAULT -> vaultOpen = true
+            MainActivity.DESTINATION_ALERTS -> alertsOpen = true
+        }
+        if (destination != null) onDestinationHandled()
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         NaoScreen(
@@ -38,6 +55,14 @@ fun NaoApp() {
             exit = fadeOut(),
         ) {
             VaultScreen(onClose = { vaultOpen = false })
+        }
+
+        AnimatedVisibility(
+            visible = alertsOpen,
+            enter = fadeIn() + slideInVertically { it / 12 },
+            exit = fadeOut(),
+        ) {
+            AlertsScreen(onClose = { alertsOpen = false })
         }
     }
 }

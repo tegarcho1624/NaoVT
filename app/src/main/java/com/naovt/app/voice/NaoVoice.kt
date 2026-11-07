@@ -32,7 +32,9 @@ class NaoVoice(context: Context) {
     private var currentUtteranceId: String? = null
     private var utteranceCounter = 0
 
-    private val tts: TextToSpeech = TextToSpeech(context.applicationContext) { status ->
+    private val appContext = context.applicationContext
+
+    private val tts: TextToSpeech = TextToSpeech(appContext) { status ->
         if (status == TextToSpeech.SUCCESS) onEngineReady() else problem = Problem.EngineFailed
     }
 
@@ -41,6 +43,7 @@ class NaoVoice(context: Context) {
      */
     fun speak(text: String) {
         if (problem != null) return
+        if (!VoicePreferences.isEnabled(appContext)) return // voz silenciada desde el menú
         if (!ready) {
             pendingText = text // se dirá apenas el motor esté listo
             return

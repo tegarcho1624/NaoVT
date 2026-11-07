@@ -40,4 +40,20 @@
     <string name="overlay_notifications_denied">Sin notificaciones no verás el botón para detener a Nao en la barra, pero puedes hacerlo desde la app.</string>
     <string name="overlay_failed">No se pudo mostrar a Nao flotando.</string>
     <string name="overlay_open_blocked">Tu teléfono no dejó abrir la app desde Nao. Ábrela desde la notificación.</string>
+
+    <!-- Menú radial del Modo Flotante -->
+    <string name="menu_home">Inicio</string>
+    <string name="menu_vault">Baúl</string>
+    <string name="menu_talk">Hablar</string>
+    <string name="menu_alerts">Alertas</string>
+    <string name="menu_voice">Voz</string>
+    <string name="menu_stop">Detener</string>
+    <string name="menu_talk_soon">Hablar con Nao: ¡próximamente!</string>
+    <string name="menu_voice_enabled">Voz de Nao activada</string>
+    <string name="menu_voice_muted">Voz de Nao silenciada</string>
+
+    <!-- Alertas -->
+    <string name="alerts_title">Alertas</string>
+    <string name="alerts_placeholder">Aquí podrás programar recordatorios con fecha, hora, texto y una expresión de Nao. ¡Próximamente!</string>
+    <string name="alerts_close">Cerrar</string>
 </resources>

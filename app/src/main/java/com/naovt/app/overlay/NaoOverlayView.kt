@@ -23,7 +23,8 @@ private const val MATCH_PARENT_PX = ViewGroup.LayoutParams.MATCH_PARENT
  *
  * Gestos:
  * - Un toque: [onTap].
- * - Doble toque o mantener presionado: [onOpenApp].
+ * - Doble toque: [onOpenApp].
+ * - Mantener presionado: [onLongPress] (abre el menú radial).
  * - Arrastrar con un dedo: [onMove].
  * - Pellizcar con dos dedos: [onScale] (factor de cambio) y [onScaleEnd] al soltar.
  *
@@ -36,6 +37,7 @@ class NaoOverlayView(context: Context, initialHeightPx: Int) : FrameLayout(conte
     // Callbacks que conecta el servicio.
     var onTap: () -> Unit = {}
     var onOpenApp: () -> Unit = {}
+    var onLongPress: () -> Unit = {}
     var positionProvider: () -> Point = { Point(0, 0) }
     var onMove: (x: Int, y: Int) -> Unit = { _, _ -> }
     var onMoveEnd: () -> Unit = {}
@@ -74,7 +76,7 @@ class NaoOverlayView(context: Context, initialHeightPx: Int) : FrameLayout(conte
         if (!dragging && !multiTouch) {
             longPressed = true
             performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-            onOpenApp()
+            onLongPress()
         }
     }
 
@@ -198,7 +200,8 @@ class NaoOverlayView(context: Context, initialHeightPx: Int) : FrameLayout(conte
             }
 
             MotionEvent.ACTION_MOVE -> {
-                if (multiTouch) return true
+                // Tras un pellizco o un mantener presionado ya no se arrastra.
+                if (multiTouch || longPressed) return true
                 val dx = event.rawX - downRawX
                 val dy = event.rawY - downRawY
                 if (!dragging && hypot(dx, dy) > touchSlop) {
@@ -213,7 +216,7 @@ class NaoOverlayView(context: Context, initialHeightPx: Int) : FrameLayout(conte
                 when {
                     multiTouch -> Unit // terminó un pellizco: no es un toque
                     dragging -> onMoveEnd()
-                    longPressed -> Unit // ya abrió la app
+                    longPressed -> Unit // ya abrió el menú
                     else -> handleTap(event.eventTime)
                 }
             }
