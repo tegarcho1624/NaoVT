@@ -23,10 +23,20 @@ enum class NaoMouth(@DrawableRes val drawable: Int) {
     Happy(R.drawable.boca_abierta_feliz),
 }
 
-/** Expresión facial de Nao: define qué capas de ojos y boca se muestran. */
-enum class NaoExpression(@DrawableRes val eyes: Int, val mouth: NaoMouth) {
+/**
+ * Expresión facial de Nao: define qué capas de ojos y boca se muestran.
+ * [provisional] = todavía no tiene sus imágenes y usa temporalmente la cara normal.
+ * Cuando existan, solo hay que cambiar sus dos drawables aquí y quitar `provisional`.
+ */
+enum class NaoExpression(
+    @DrawableRes val eyes: Int,
+    val mouth: NaoMouth,
+    val provisional: Boolean = false,
+) {
     Neutral(R.drawable.ojos_base, NaoMouth.Closed),
     Loved(R.drawable.ojos_corazon_mejilla, NaoMouth.Open),
+    Angry(R.drawable.ojos_base, NaoMouth.Closed, provisional = true), // Enojada
+    Yandere(R.drawable.ojos_base, NaoMouth.Closed, provisional = true),
 }
 
 /** Relación de aspecto de todas las capas del personaje (1024x1536). */
@@ -38,7 +48,8 @@ private const val LAYER_ASPECT_RATIO = 1024f / 1536f
  * El fondo se dibuja afuera (ver RoomBackground), siempre debajo de este componente.
  *
  * Estados de la cara (de mayor a menor prioridad):
- * 1. Cariño ([expression] = Loved): ojos con corazón y boca de beso.
+ * 1. Expresión especial ([expression] distinta de Neutral): cariño (ojos con corazón y boca de
+ *    beso), o la de una alerta (enojada, yandere...).
  * 2. Hablando ([isSpeaking]): ojos normales abiertos; la boca la anima [mouthOverride].
  * 3. Parpadeo ([isBlinking]): ojos cerrados un instante.
  * 4. Base: ojos y boca base.
@@ -57,7 +68,7 @@ fun NaoVTAvatar(
     isBlinking: Boolean = false,
 ) {
     val eyes = when {
-        expression == NaoExpression.Loved -> expression.eyes
+        expression != NaoExpression.Neutral -> expression.eyes
         isSpeaking -> NaoExpression.Neutral.eyes
         isBlinking -> R.drawable.ojos_feliz_cerrando
         else -> expression.eyes

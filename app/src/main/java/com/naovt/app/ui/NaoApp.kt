@@ -14,21 +14,25 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.naovt.app.MainActivity
+import com.naovt.app.alerts.AlertDisplay
 import com.naovt.app.overlay.NaoOverlayService
 import com.naovt.app.overlay.rememberOverlayController
 import com.naovt.app.ui.alerts.AlertsScreen
 import com.naovt.app.ui.vault.VaultScreen
 
 /**
- * Raíz de la app. El Baúl y Alertas se dibujan encima de la pantalla principal, que se queda
+ * Raíz de la app. El Baúl y Mis Alertas se dibujan encima de la pantalla principal, que se queda
  * viva por debajo (así conserva la habitación elegida al volver).
  *
  * [destination] permite abrir directo en una pantalla (lo usa el menú radial del Modo Flotante).
+ * [alertDisplay] hace que Nao aparezca con la expresión de una alerta (al tocar su notificación).
  */
 @Composable
 fun NaoApp(
     destination: String? = null,
     onDestinationHandled: () -> Unit = {},
+    alertDisplay: AlertDisplay? = null,
+    onAlertDisplayDone: () -> Unit = {},
 ) {
     var vaultOpen by rememberSaveable { mutableStateOf(false) }
     var alertsOpen by rememberSaveable { mutableStateOf(false) }
@@ -45,8 +49,11 @@ fun NaoApp(
     Box(modifier = Modifier.fillMaxSize()) {
         NaoScreen(
             onOpenVault = { vaultOpen = true },
+            onOpenAlerts = { alertsOpen = true },
             isOverlayRunning = NaoOverlayService.isRunning,
             onToggleOverlay = { if (NaoOverlayService.isRunning) overlay.stop() else overlay.start() },
+            alertDisplay = alertDisplay,
+            onAlertDisplayDone = onAlertDisplayDone,
         )
 
         AnimatedVisibility(

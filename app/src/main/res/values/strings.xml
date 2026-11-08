@@ -53,7 +53,34 @@
     <string name="menu_voice_muted">Voz de Nao silenciada</string>
 
     <!-- Alertas -->
-    <string name="alerts_title">Alertas</string>
-    <string name="alerts_placeholder">Aquí podrás programar recordatorios con fecha, hora, texto y una expresión de Nao. ¡Próximamente!</string>
-    <string name="alerts_close">Cerrar</string>
+    <string name="alerts_title">Mis Alertas</string>
+    <string name="alerts_button">Mis Alertas</string>
+    <string name="alerts_empty">Aún no hay alertas. ¡Añade la primera!</string>
+    <string name="alerts_add">Añadir alerta</string>
+    <string name="alerts_close_screen">Cerrar Mis Alertas</string>
+    <string name="alerts_count">%d alertas</string>
+    <string name="alerts_delete">Eliminar alerta</string>
+    <string name="alerts_new_title">Nueva alerta</string>
+    <string name="alerts_task_label">¿Qué te recuerdo?</string>
+    <string name="alerts_expression_label">Expresión de Nao</string>
+    <string name="alerts_save">Guardar</string>
+    <string name="alerts_cancel">Cancelar</string>
+    <string name="alerts_past_error">Elige una fecha y una hora futuras.</string>
+    <string name="alerts_status_fired">Ya sonó</string>
+    <string name="alerts_status_missed">Se pasó</string>
+    <string name="alerts_expression_pending">%1$s (por ahora usa la cara normal)</string>
+    <string name="alerts_exact_missing">Sin el permiso de alarmas exactas, la alerta puede retrasarse unos minutos.</string>
+    <string name="alerts_exact_action">Activar</string>
+    <string name="alerts_notifications_denied">Sin permiso de notificaciones no verás el aviso en pantalla, pero Nao igual te hablará.</string>
+
+    <!-- Expresiones -->
+    <string name="expr_normal">Normal</string>
+    <string name="expr_angry">Enojada</string>
+    <string name="expr_love">Amor</string>
+    <string name="expr_yandere">Yandere</string>
+
+    <!-- Notificación de alertas -->
+    <string name="alert_channel_name">Alertas de Nao</string>
+    <string name="alert_notification_title">Nao te recuerda</string>
+    <string name="alert_missed_title">Se te pasó una alerta</string>
 </resources>
