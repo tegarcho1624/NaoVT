@@ -28,23 +28,24 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.naovt.app.R
+import com.naovt.app.data.AlertRepeat
 import com.naovt.app.ui.avatar.NaoExpression
 import java.util.Calendar
 import java.util.Date
 
 private const val MAX_TEXT_LENGTH = 100
 
-/** Formulario de nueva alerta: tarea, fecha, hora y expresión de Nao. */
+/** Formulario de nueva alerta: tarea, fecha, hora, expresión de Nao y repetición. */
 @Composable
 fun AddAlertDialog(
-    onSave: (text: String, triggerAtMillis: Long, expression: NaoExpression) -> Unit,
+    onSave: (text: String, triggerAtMillis: Long, expression: NaoExpression, repeat: AlertRepeat) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
     var text by rememberSaveable { mutableStateOf("") }
     var triggerAt by rememberSaveable { mutableStateOf(defaultTriggerTime()) }
     var expression by rememberSaveable { mutableStateOf(NaoExpression.Neutral) }
-    var menuOpen by remember { mutableStateOf(false) }
+    var repeat by rememberSaveable { mutableStateOf(AlertRepeat.None) }
 
     val isFuture = triggerAt > System.currentTimeMillis()
     val dateText = DateFormat.getMediumDateFormat(context).format(Date(triggerAt))
@@ -72,28 +73,20 @@ fun AddAlertDialog(
                         modifier = Modifier.weight(1f),
                     ) { Text(timeText) }
                 }
-                Box {
-                    OutlinedButton(
-                        onClick = { menuOpen = true },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(
-                            stringResource(R.string.alerts_expression_label) + ": " +
-                                stringResource(expression.labelRes()),
-                        )
-                    }
-                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                        SelectableExpressions.forEach { option ->
-                            DropdownMenuItem(
-                                text = { Text(option.displayName()) },
-                                onClick = {
-                                    expression = option
-                                    menuOpen = false
-                                },
-                            )
-                        }
-                    }
-                }
+                OptionDropdown(
+                    label = stringResource(R.string.alerts_repeat_label),
+                    selectedText = stringResource(repeat.labelRes()),
+                    options = SelectableRepeats,
+                    optionText = { stringResource(it.labelRes()) },
+                    onSelected = { repeat = it },
+                )
+                OptionDropdown(
+                    label = stringResource(R.string.alerts_expression_label),
+                    selectedText = stringResource(expression.labelRes()),
+                    options = SelectableExpressions,
+                    optionText = { it.displayName() },
+                    onSelected = { expression = it },
+                )
                 if (!isFuture) {
                     Text(
                         text = stringResource(R.string.alerts_past_error),
@@ -105,7 +98,7 @@ fun AddAlertDialog(
         },
         confirmButton = {
             TextButton(
-                onClick = { onSave(text.trim(), triggerAt, expression) },
+                onClick = { onSave(text.trim(), triggerAt, expression, repeat) },
                 enabled = text.isNotBlank() && isFuture,
             ) { Text(stringResource(R.string.alerts_save)) }
         },
@@ -113,6 +106,34 @@ fun AddAlertDialog(
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.alerts_cancel)) }
         },
     )
+}
+
+/** Botón que despliega un menú de opciones. */
+@Composable
+private fun <T> OptionDropdown(
+    label: String,
+    selectedText: String,
+    options: List<T>,
+    optionText: @Composable (T) -> String,
+    onSelected: (T) -> Unit,
+) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        OutlinedButton(onClick = { open = true }, modifier = Modifier.fillMaxWidth()) {
+            Text("$label: $selectedText")
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(optionText(option)) },
+                    onClick = {
+                        onSelected(option)
+                        open = false
+                    },
+                )
+            }
+        }
+    }
 }
 
 /** Por defecto: dentro de una hora. */

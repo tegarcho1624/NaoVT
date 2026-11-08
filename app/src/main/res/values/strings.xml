@@ -83,4 +83,11 @@
     <string name="alert_channel_name">Alertas de Nao</string>
     <string name="alert_notification_title">Nao te recuerda</string>
     <string name="alert_missed_title">Se te pasó una alerta</string>
+
+    <!-- Repetición de alertas -->
+    <string name="alerts_repeat_label">Repetir</string>
+    <string name="repeat_none">No se repite</string>
+    <string name="repeat_daily">Todos los días</string>
+    <string name="repeat_weekdays">De lunes a viernes</string>
+    <string name="repeat_weekly">Cada semana</string>
 </resources>

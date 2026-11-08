@@ -23,10 +23,15 @@ class AlertRepository(context: Context) {
 
     fun get(id: Int): Alert? = synchronized(LOCK) { read().firstOrNull { it.id == id } }
 
-    fun add(text: String, triggerAtMillis: Long, expression: NaoExpression): Alert =
+    fun add(
+        text: String,
+        triggerAtMillis: Long,
+        expression: NaoExpression,
+        repeat: AlertRepeat = AlertRepeat.None,
+    ): Alert =
         synchronized(LOCK) {
             val id = prefs.getInt(KEY_NEXT_ID, 1)
-            val alert = Alert(id, text, triggerAtMillis, expression)
+            val alert = Alert(id, text, triggerAtMillis, expression, repeat = repeat)
             write(read() + alert)
             prefs.edit().putInt(KEY_NEXT_ID, id + 1).apply()
             alert
@@ -34,6 +39,11 @@ class AlertRepository(context: Context) {
 
     fun markFired(id: Int) = synchronized(LOCK) {
         write(read().map { if (it.id == id) it.copy(fired = true) else it })
+    }
+
+    /** Mueve una alerta que se repite a su próxima vez. */
+    fun updateTrigger(id: Int, newTriggerAtMillis: Long) = synchronized(LOCK) {
+        write(read().map { if (it.id == id) it.copy(triggerAtMillis = newTriggerAtMillis) else it })
     }
 
     fun delete(id: Int) = synchronized(LOCK) {
@@ -50,6 +60,7 @@ class AlertRepository(context: Context) {
                     .put(KEY_TIME, alert.triggerAtMillis)
                     .put(KEY_EXPRESSION, alert.expression.name)
                     .put(KEY_FIRED, alert.fired)
+                    .put(KEY_REPEAT, alert.repeat.name)
             )
         }
         prefs.edit().putString(PREFS_KEY_LIST, array.toString()).apply()
@@ -69,6 +80,10 @@ class AlertRepository(context: Context) {
                         NaoExpression.valueOf(json.optString(KEY_EXPRESSION, ""))
                     }.getOrDefault(NaoExpression.Neutral),
                     fired = json.optBoolean(KEY_FIRED, false),
+                    // Las alertas guardadas antes de existir la repetición no la tienen: no se repiten.
+                    repeat = runCatching {
+                        AlertRepeat.valueOf(json.optString(KEY_REPEAT, ""))
+                    }.getOrDefault(AlertRepeat.None),
                 )
             }
         } catch (e: JSONException) {
@@ -87,6 +102,7 @@ class AlertRepository(context: Context) {
         const val KEY_TIME = "time"
         const val KEY_EXPRESSION = "expression"
         const val KEY_FIRED = "fired"
+        const val KEY_REPEAT = "repeat"
         val LOCK = Any()
     }
 }

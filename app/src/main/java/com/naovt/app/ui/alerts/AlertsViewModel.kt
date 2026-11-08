@@ -6,8 +6,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.naovt.app.alerts.AlertRecurrence
 import com.naovt.app.alerts.AlertScheduler
 import com.naovt.app.data.Alert
+import com.naovt.app.data.AlertRepeat
 import com.naovt.app.data.AlertRepository
 import com.naovt.app.ui.avatar.NaoExpression
 import kotlinx.coroutines.Dispatchers
@@ -38,10 +40,20 @@ class AlertsViewModel(application: Application) : AndroidViewModel(application) 
         loadAlerts()
     }
 
-    fun addAlert(text: String, triggerAtMillis: Long, expression: NaoExpression) {
+    fun addAlert(
+        text: String,
+        triggerAtMillis: Long,
+        expression: NaoExpression,
+        repeat: AlertRepeat = AlertRepeat.None,
+    ) {
         viewModelScope.launch {
             val alert = withContext(Dispatchers.IO) {
-                repository.add(text.trim(), triggerAtMillis, expression)
+                repository.add(
+                    text.trim(),
+                    AlertRecurrence.alignFirst(triggerAtMillis, repeat),
+                    expression,
+                    repeat,
+                )
             }
             val exact = AlertScheduler.schedule(app, alert)
             alerts = (alerts + alert).sortedBy { it.triggerAtMillis }

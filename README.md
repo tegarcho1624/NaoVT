@@ -1,4 +1,4 @@
-# NaoVT — Fase 9 (Sistema de Alertas)
+# NaoVT — Fase 10 (Alertas con repetición)
 
 Mascota virtual Naomi en Android (Jetpack Compose, tema oscuro).
 

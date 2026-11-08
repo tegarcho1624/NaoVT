@@ -9,4 +9,6 @@ data class Alert(
     val triggerAtMillis: Long,
     val expression: NaoExpression,
     val fired: Boolean = false,
+    /** Si se repite, [triggerAtMillis] es siempre la próxima vez que sonará. */
+    val repeat: AlertRepeat = AlertRepeat.None,
 )

@@ -7,6 +7,7 @@ import android.content.Intent
 import android.os.Build
 import android.util.Log
 import com.naovt.app.data.Alert
+import com.naovt.app.data.AlertRepeat
 import com.naovt.app.data.AlertRepository
 
 /** Programa y cancela las alarmas de las alertas con AlarmManager. */
@@ -55,11 +56,21 @@ object AlertScheduler {
         val repository = AlertRepository(context)
         val now = System.currentTimeMillis()
         repository.getAll().filter { !it.fired }.forEach { alert ->
-            if (alert.triggerAtMillis > now) {
-                schedule(context, alert)
-            } else if (handleMissed) {
-                repository.markFired(alert.id)
-                AlertNotifier.show(context, alert, missed = true)
+            when {
+                alert.triggerAtMillis > now -> schedule(context, alert)
+
+                // Se repite y la hora ya pasó: salta a su próxima vez (y avisa si estaba apagado).
+                alert.repeat != AlertRepeat.None -> {
+                    val next = AlertRecurrence.nextAfter(alert.triggerAtMillis, alert.repeat, now)
+                    repository.updateTrigger(alert.id, next)
+                    schedule(context, alert.copy(triggerAtMillis = next))
+                    if (handleMissed) AlertNotifier.show(context, alert, missed = true)
+                }
+
+                handleMissed -> {
+                    repository.markFired(alert.id)
+                    AlertNotifier.show(context, alert, missed = true)
+                }
             }
         }
     }

@@ -3,6 +3,7 @@ package com.naovt.app.alerts
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import com.naovt.app.data.AlertRepeat
 import com.naovt.app.data.AlertRepository
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -21,7 +22,14 @@ class AlertReceiver : BroadcastReceiver() {
         val alert = repository.get(alertId) ?: return // la borraron antes de que sonara
         if (alert.fired) return
 
-        repository.markFired(alertId)
+        if (alert.repeat == AlertRepeat.None) {
+            repository.markFired(alertId)
+        } else {
+            // Lo primero: dejar programada la próxima vez, así la cadena no se rompe aunque algo falle.
+            val next = AlertRecurrence.nextAfter(alert.triggerAtMillis, alert.repeat, System.currentTimeMillis())
+            repository.updateTrigger(alertId, next)
+            AlertScheduler.schedule(context, alert.copy(triggerAtMillis = next))
+        }
         AlertNotifier.show(context, alert)
 
         val pending = goAsync()

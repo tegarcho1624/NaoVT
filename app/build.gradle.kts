@@ -12,8 +12,8 @@ android {
         applicationId = "com.naovt.app"
         minSdk = 24
         targetSdk = 34
-        versionCode = 9
-        versionName = "0.9.0-alertas"
+        versionCode = 10
+        versionName = "0.10.0-repeticion"
     }
 
     buildTypes {

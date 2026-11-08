@@ -59,12 +59,18 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.naovt.app.R
 import com.naovt.app.alerts.AlertNotifier
 import com.naovt.app.data.Alert
+import com.naovt.app.data.AlertRepeat
 import com.naovt.app.ui.avatar.NaoExpression
 import kotlinx.coroutines.launch
 import java.util.Date
 
 /** Una alerta pendiente de guardar mientras se pide el permiso de notificaciones. */
-private data class NewAlert(val text: String, val triggerAt: Long, val expression: NaoExpression)
+private data class NewAlert(
+    val text: String,
+    val triggerAt: Long,
+    val expression: NaoExpression,
+    val repeat: AlertRepeat,
+)
 
 /** Pantalla "Mis Alertas": lista de recordatorios, botón + para añadir y eliminar. */
 @Composable
@@ -90,7 +96,7 @@ fun AlertsScreen(
     val notificationLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
-        pendingSave?.let { viewModel.addAlert(it.text, it.triggerAt, it.expression) }
+        pendingSave?.let { viewModel.addAlert(it.text, it.triggerAt, it.expression, it.repeat) }
         pendingSave = null
         if (!granted) scope.launch { snackbarHostState.showSnackbar(notificationsDeniedMessage) }
     }
@@ -176,12 +182,12 @@ fun AlertsScreen(
 
     if (showForm) {
         AddAlertDialog(
-            onSave = { text, triggerAt, expression ->
+            onSave = { text, triggerAt, expression, repeat ->
                 showForm = false
                 if (AlertNotifier.canNotify(context)) {
-                    viewModel.addAlert(text, triggerAt, expression)
+                    viewModel.addAlert(text, triggerAt, expression, repeat)
                 } else {
-                    pendingSave = NewAlert(text, triggerAt, expression)
+                    pendingSave = NewAlert(text, triggerAt, expression, repeat)
                     notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 }
             },
@@ -231,7 +237,9 @@ private fun AlertCard(alert: Alert, onDelete: () -> Unit) {
         alert.triggerAtMillis < System.currentTimeMillis() -> stringResource(R.string.alerts_status_missed)
         else -> null
     }
-    val details = stringResource(alert.expression.labelRes()) + (status?.let { " · $it" } ?: "")
+    val repeatText = if (alert.repeat != AlertRepeat.None) stringResource(alert.repeat.labelRes()) else null
+    val details = listOfNotNull(repeatText, stringResource(alert.expression.labelRes()), status)
+        .joinToString(" · ")
 
     Card(
         modifier = Modifier
