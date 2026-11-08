@@ -19,6 +19,9 @@ object NaoPhrases {
         "Me encanta pasar tiempo contigo.",
     )
 
+    /** Frases originales: se cargan en el gestor de frases la primera vez que se abre la app. */
+    val defaults: List<String> get() = all
+
     /** Frase al azar, evitando repetir la [previous] para que no suene monótono. */
     fun random(previous: String? = null): String {
         val candidates = if (all.size > 1) all.filter { it != previous } else all

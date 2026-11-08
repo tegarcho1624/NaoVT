@@ -18,6 +18,7 @@ import com.naovt.app.alerts.AlertDisplay
 import com.naovt.app.overlay.NaoOverlayService
 import com.naovt.app.overlay.rememberOverlayController
 import com.naovt.app.ui.alerts.AlertsScreen
+import com.naovt.app.ui.phrases.PhrasesScreen
 import com.naovt.app.ui.vault.VaultScreen
 
 /**
@@ -36,6 +37,7 @@ fun NaoApp(
 ) {
     var vaultOpen by rememberSaveable { mutableStateOf(false) }
     var alertsOpen by rememberSaveable { mutableStateOf(false) }
+    var phrasesOpen by rememberSaveable { mutableStateOf(false) }
     val overlay = rememberOverlayController()
 
     LaunchedEffect(destination) {
@@ -50,6 +52,7 @@ fun NaoApp(
         NaoScreen(
             onOpenVault = { vaultOpen = true },
             onOpenAlerts = { alertsOpen = true },
+            onOpenPhrases = { phrasesOpen = true },
             isOverlayRunning = NaoOverlayService.isRunning,
             onToggleOverlay = { if (NaoOverlayService.isRunning) overlay.stop() else overlay.start() },
             alertDisplay = alertDisplay,
@@ -70,6 +73,14 @@ fun NaoApp(
             exit = fadeOut(),
         ) {
             AlertsScreen(onClose = { alertsOpen = false })
+        }
+
+        AnimatedVisibility(
+            visible = phrasesOpen,
+            enter = fadeIn() + slideInVertically { it / 12 },
+            exit = fadeOut(),
+        ) {
+            PhrasesScreen(onClose = { phrasesOpen = false })
         }
     }
 }

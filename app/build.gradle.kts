@@ -12,8 +12,8 @@ android {
         applicationId = "com.naovt.app"
         minSdk = 24
         targetSdk = 34
-        versionCode = 10
-        versionName = "0.10.0-repeticion"
+        versionCode = 11
+        versionName = "0.11.0-frases"
     }
 
     buildTypes {

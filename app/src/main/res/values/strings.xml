@@ -90,4 +90,27 @@
     <string name="repeat_daily">Todos los días</string>
     <string name="repeat_weekdays">De lunes a viernes</string>
     <string name="repeat_weekly">Cada semana</string>
+
+    <!-- Frases de Nao -->
+    <string name="phrases_button">Frases de Nao</string>
+    <string name="phrases_title">Frases de Nao</string>
+    <string name="phrases_count">%d frases</string>
+    <string name="phrases_hint">Toca una frase para escucharla. Mantenla presionada para editarla o eliminarla.</string>
+    <string name="phrases_empty">Aún no hay frases. ¡Añade la primera! Mientras tanto, Nao no dirá nada al tocarla.</string>
+    <string name="phrases_add">Añadir frase</string>
+    <string name="phrases_close">Cerrar Frases de Nao</string>
+    <string name="phrases_new_title">Nueva frase</string>
+    <string name="phrases_edit_title">Editar frase</string>
+    <string name="phrases_text_label">¿Qué dice Nao?</string>
+    <string name="phrases_category_label">Categoría</string>
+    <string name="phrases_save">Guardar</string>
+    <string name="phrases_cancel">Cancelar</string>
+    <string name="phrases_edit">Editar</string>
+    <string name="phrases_delete">Eliminar</string>
+    <string name="phrases_delete_title">¿Eliminar esta frase?</string>
+    <string name="phrases_delete_confirm">Eliminar</string>
+    <string name="phrases_muted">La voz de Nao está silenciada. Actívala desde el menú del Modo Flotante.</string>
+    <string name="category_normal">Normal</string>
+    <string name="category_comfort">Consuelo</string>
+    <string name="category_meme">Meme</string>
 </resources>

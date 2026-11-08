@@ -9,5 +9,8 @@ object NaoMemoryPhrases {
         "Me encanta tener un recuerdo más contigo. Gracias por confiármelo.",
     )
 
+    /** Las mismas frases, para cargarlas en el gestor de frases la primera vez que se abre la app. */
+    val defaults: List<String> get() = newMemory
+
     fun newMemory(): String = newMemory.random()
 }

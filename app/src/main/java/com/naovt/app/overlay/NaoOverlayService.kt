@@ -30,7 +30,7 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 import com.naovt.app.MainActivity
 import com.naovt.app.R
-import com.naovt.app.dialog.NaoPhrases
+import com.naovt.app.data.PhraseRepository
 import com.naovt.app.voice.NaoVoice
 import com.naovt.app.voice.VoicePreferences
 
@@ -386,9 +386,10 @@ class NaoOverlayService : Service() {
     private fun speakPhrase() {
         // Voz silenciada desde el menú: no se crea el motor ni se gasta batería.
         if (!VoicePreferences.isEnabled(this)) return
-        val engine = voice ?: NaoVoice(this).also { voice = it }
-        val phrase = NaoPhrases.random(previous = lastPhrase)
+        // Si no hay frases (el usuario las borró todas), Nao no dice nada.
+        val phrase = PhraseRepository(this).random(previous = lastPhrase) ?: return
         lastPhrase = phrase
+        val engine = voice ?: NaoVoice(this).also { voice = it }
         engine.speak(phrase)
 
         talkWaitUntil = SystemClock.uptimeMillis() + VOICE_START_WAIT_MS

@@ -39,7 +39,8 @@ import androidx.compose.ui.unit.dp
 import com.naovt.app.R
 import com.naovt.app.ui.avatar.NaoExpression
 import com.naovt.app.ui.avatar.NaoMouth
-import com.naovt.app.dialog.NaoPhrases
+import com.naovt.app.data.PhraseRepository
+import androidx.compose.material.icons.filled.Edit
 import com.naovt.app.ui.avatar.NaoVTAvatar
 import com.naovt.app.ui.avatar.rememberBlink
 import com.naovt.app.ui.avatar.rememberTalkingMouth
@@ -57,6 +58,7 @@ private const val ALERT_DISPLAY_MS = 8000L
 fun NaoScreen(
     onOpenVault: () -> Unit = {},
     onOpenAlerts: () -> Unit = {},
+    onOpenPhrases: () -> Unit = {},
     isOverlayRunning: Boolean = false,
     onToggleOverlay: () -> Unit = {},
     alertDisplay: AlertDisplay? = null,
@@ -71,6 +73,7 @@ fun NaoScreen(
     val shownExpression = alertDisplay?.expression ?: expression
 
     val context = LocalContext.current
+    val phraseRepository = remember { PhraseRepository(context) }
     val voice = rememberNaoVoice()
     // Parpadea solo en estado base: sin hablar y sin cara de cariño.
     val isBlinking = rememberBlink(
@@ -121,11 +124,11 @@ fun NaoScreen(
                 .fillMaxHeight(0.85f)
                 .pointerInput(Unit) {
                     detectTapGestures {
-                        val phrase = NaoPhrases.random(previous = lastPhrase)
+                        val phrase = phraseRepository.random(previous = lastPhrase)
                         lastPhrase = phrase
                         if (voice.isSpeaking) {
                             // Ya está hablando: corta la frase anterior y sigue con la nueva (sin cariño).
-                            voice.speak(phrase)
+                            phrase?.let { voice.speak(it) }
                         } else {
                             pendingPhrase = phrase
                             tapCount++ // cariño primero; la frase se dice al terminar
@@ -168,16 +171,25 @@ fun NaoScreen(
             )
         }
 
-        // Acceso a Mis Alertas (esquina superior izquierda).
-        ExtendedFloatingActionButton(
-            onClick = onOpenAlerts,
-            icon = { Icon(Icons.Default.Notifications, contentDescription = null) },
-            text = { Text(stringResource(R.string.alerts_button)) },
+        // Accesos a Mis Alertas y Frases de Nao (esquina superior izquierda).
+        Column(
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .safeDrawingPadding()
                 .padding(12.dp),
-        )
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            ExtendedFloatingActionButton(
+                onClick = onOpenAlerts,
+                icon = { Icon(Icons.Default.Notifications, contentDescription = null) },
+                text = { Text(stringResource(R.string.alerts_button)) },
+            )
+            ExtendedFloatingActionButton(
+                onClick = onOpenPhrases,
+                icon = { Icon(Icons.Default.Edit, contentDescription = null) },
+                text = { Text(stringResource(R.string.phrases_button)) },
+            )
+        }
 
         // Texto de la alerta que abrió la app; tocarlo lo cierra.
         if (alertDisplay != null) {

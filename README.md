@@ -1,4 +1,4 @@
-# NaoVT — Fase 10 (Alertas con repetición)
+# NaoVT — Fase 11 (Gestor de frases)
 
 Mascota virtual Naomi en Android (Jetpack Compose, tema oscuro).
 
@@ -12,6 +12,7 @@ Mascota virtual Naomi en Android (Jetpack Compose, tema oscuro).
 - Modo Flotante (pellizca para cambiar el tamaño, 100–300 dp): `overlay/` (servicio en primer plano, vista flotante con las capas, permisos y notificación)
 - Menú radial (mantener presionado a Nao flotante): `overlay/RadialMenuView.kt`; opciones en `buildMenuItems()` del servicio
 - Alertas: `alerts/` (AlarmManager, receptores, notificación y voz), `data/AlertRepository.kt` y `ui/alerts/` (pantalla Mis Alertas)
+- Frases: `data/PhraseRepository.kt` (JSON en SharedPreferences) y `ui/phrases/` (pantalla Frases de Nao)
 - Assets en `app/src/main/res/drawable/`
 
 APK: sube a GitHub y revisa Actions → *Build APK* → artefacto `NaoVT-debug-apk`.
