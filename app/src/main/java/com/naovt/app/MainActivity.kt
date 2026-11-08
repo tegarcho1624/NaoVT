@@ -63,6 +63,7 @@ class MainActivity : ComponentActivity() {
         const val EXTRA_DESTINATION = "com.naovt.app.extra.DESTINATION"
         const val DESTINATION_VAULT = "vault"
         const val DESTINATION_ALERTS = "alerts"
+        const val DESTINATION_POMODORO = "pomodoro"
 
         const val EXTRA_ALERT_TEXT = "com.naovt.app.extra.ALERT_TEXT"
         const val EXTRA_ALERT_EXPRESSION = "com.naovt.app.extra.ALERT_EXPRESSION"

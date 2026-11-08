@@ -31,6 +31,7 @@ fun NaoHeadBadge(
     modifier: Modifier = Modifier,
     size: Dp = 72.dp,
     mouthOverride: NaoMouth? = null,
+    isBlinking: Boolean = false,
 ) {
     val dpPerPx = size.value / HEAD_SIZE_PX
 
@@ -43,6 +44,7 @@ fun NaoHeadBadge(
         NaoVTAvatar(
             expression = expression,
             mouthOverride = mouthOverride,
+            isBlinking = isBlinking,
             modifier = Modifier
                 .wrapContentSize(align = Alignment.TopStart, unbounded = true)
                 .requiredWidth((LAYER_WIDTH_PX * dpPerPx).dp)

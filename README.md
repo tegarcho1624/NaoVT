@@ -1,4 +1,4 @@
-# NaoVT — Fase 11 (Gestor de frases)
+# NaoVT — Fase 12 (Modo Estudio / Pomodoro)
 
 Mascota virtual Naomi en Android (Jetpack Compose, tema oscuro).
 
@@ -13,6 +13,7 @@ Mascota virtual Naomi en Android (Jetpack Compose, tema oscuro).
 - Menú radial (mantener presionado a Nao flotante): `overlay/RadialMenuView.kt`; opciones en `buildMenuItems()` del servicio
 - Alertas: `alerts/` (AlarmManager, receptores, notificación y voz), `data/AlertRepository.kt` y `ui/alerts/` (pantalla Mis Alertas)
 - Frases: `data/PhraseRepository.kt` (JSON en SharedPreferences) y `ui/phrases/` (pantalla Frases de Nao)
+- Modo Estudio: `pomodoro/` (estado, AlarmManager, notificaciones, receptores) y `ui/pomodoro/` (pantalla)
 - Assets en `app/src/main/res/drawable/`
 
 APK: sube a GitHub y revisa Actions → *Build APK* → artefacto `NaoVT-debug-apk`.

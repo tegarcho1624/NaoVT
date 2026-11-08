@@ -41,6 +41,7 @@ import com.naovt.app.ui.avatar.NaoExpression
 import com.naovt.app.ui.avatar.NaoMouth
 import com.naovt.app.data.PhraseRepository
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Star
 import com.naovt.app.ui.avatar.NaoVTAvatar
 import com.naovt.app.ui.avatar.rememberBlink
 import com.naovt.app.ui.avatar.rememberTalkingMouth
@@ -59,6 +60,7 @@ fun NaoScreen(
     onOpenVault: () -> Unit = {},
     onOpenAlerts: () -> Unit = {},
     onOpenPhrases: () -> Unit = {},
+    onOpenPomodoro: () -> Unit = {},
     isOverlayRunning: Boolean = false,
     onToggleOverlay: () -> Unit = {},
     alertDisplay: AlertDisplay? = null,
@@ -171,7 +173,7 @@ fun NaoScreen(
             )
         }
 
-        // Accesos a Mis Alertas y Frases de Nao (esquina superior izquierda).
+        // Accesos a Mis Alertas, Frases de Nao y Modo Estudio (esquina superior izquierda).
         Column(
             modifier = Modifier
                 .align(Alignment.TopStart)
@@ -188,6 +190,11 @@ fun NaoScreen(
                 onClick = onOpenPhrases,
                 icon = { Icon(Icons.Default.Edit, contentDescription = null) },
                 text = { Text(stringResource(R.string.phrases_button)) },
+            )
+            ExtendedFloatingActionButton(
+                onClick = onOpenPomodoro,
+                icon = { Icon(Icons.Default.Star, contentDescription = null) },
+                text = { Text(stringResource(R.string.pomodoro_button)) },
             )
         }
 

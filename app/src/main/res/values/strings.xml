@@ -113,4 +113,37 @@
     <string name="category_normal">Normal</string>
     <string name="category_comfort">Consuelo</string>
     <string name="category_meme">Meme</string>
+
+    <!-- Modo Estudio (Pomodoro) -->
+    <string name="pomodoro_button">Modo Estudio</string>
+    <string name="pomodoro_title">Modo Estudio</string>
+    <string name="pomodoro_close">Cerrar Modo Estudio</string>
+    <string name="pomodoro_status_study">Tiempo de concentración</string>
+    <string name="pomodoro_status_break">Tiempo de descanso</string>
+    <string name="pomodoro_start">Iniciar</string>
+    <string name="pomodoro_resume">Continuar</string>
+    <string name="pomodoro_pause">Pausar</string>
+    <string name="pomodoro_reset">Reiniciar</string>
+    <string name="pomodoro_completed">Pomodoros completados: %d</string>
+    <string name="pomodoro_study_duration">Estudio</string>
+    <string name="pomodoro_break_duration">Descanso</string>
+    <string name="pomodoro_minutes_short">%d min</string>
+    <string name="pomodoro_exact_missing">Sin el permiso de alarmas exactas, los cambios de fase pueden retrasarse unos minutos si cierras la app.</string>
+    <string name="pomodoro_exact_action">Activar</string>
+    <string name="pomodoro_notifications_denied">Sin permiso de notificaciones no verás el cronómetro en la barra, pero Nao igual te avisará con la voz.</string>
+
+    <!-- Notificaciones del Modo Estudio -->
+    <string name="pomodoro_channel_ongoing">Modo Estudio</string>
+    <string name="pomodoro_channel_phase_end">Avisos del Modo Estudio</string>
+    <string name="pomodoro_notification_text">Toca para abrir el Modo Estudio</string>
+    <string name="pomodoro_notification_stop">Detener</string>
+    <string name="pomodoro_end_study_title">¡Buen trabajo!</string>
+    <string name="pomodoro_end_study_text">Toma un descanso de %1$s.</string>
+    <string name="pomodoro_end_break_title">Se acabó el descanso</string>
+    <string name="pomodoro_end_break_text">¡Volvamos a la acción!</string>
+
+    <!-- Lo que dice Nao -->
+    <string name="pomodoro_say_start">¡Vamos a concentrarnos! Tú puedes.</string>
+    <string name="pomodoro_say_break">¡Buen trabajo! Toma un descanso de %1$s.</string>
+    <string name="pomodoro_say_focus">Se acabó el descanso, ¡volvamos a la acción!</string>
 </resources>
