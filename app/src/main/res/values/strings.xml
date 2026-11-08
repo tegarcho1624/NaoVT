@@ -146,4 +146,18 @@
     <string name="pomodoro_say_start">¡Vamos a concentrarnos! Tú puedes.</string>
     <string name="pomodoro_say_break">¡Buen trabajo! Toma un descanso de %1$s.</string>
     <string name="pomodoro_say_focus">Se acabó el descanso, ¡volvamos a la acción!</string>
+
+    <!-- Ajustes de Voz -->
+    <string name="voice_settings_button">Ajustes de Voz</string>
+    <string name="voice_settings_title">Ajustes de Voz</string>
+    <string name="voice_settings_close">Cerrar Ajustes de Voz</string>
+    <string name="voice_settings_enabled">Voz de Nao activada</string>
+    <string name="voice_settings_volume">Volumen</string>
+    <string name="voice_settings_volume_hint">Es relativo al volumen multimedia del teléfono: aquí solo se puede bajar, no subir.</string>
+    <string name="voice_settings_pitch">Tono</string>
+    <string name="voice_settings_rate">Velocidad</string>
+    <string name="voice_settings_test">Probar Voz</string>
+    <string name="voice_settings_reset">Restablecer</string>
+    <string name="voice_settings_test_phrase">Hola, soy Nao. ¿Así suena mi voz?</string>
+    <string name="voice_settings_muted">La voz de Nao está silenciada. Actívala con el interruptor de arriba.</string>
 </resources>

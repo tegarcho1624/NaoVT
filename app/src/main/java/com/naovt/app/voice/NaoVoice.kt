@@ -2,6 +2,7 @@ package com.naovt.app.voice
 
 import android.content.Context
 import android.media.AudioAttributes
+import android.os.Bundle
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.util.Log
@@ -50,7 +51,15 @@ class NaoVoice(context: Context) {
         }
         val id = "nao-${++utteranceCounter}"
         currentUtteranceId = id
-        tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, id)
+        // Los ajustes de voz se leen cada vez que Nao habla: un cambio en "Ajustes de Voz"
+        // suena en la siguiente frase, en las frases, las alertas y el Modo Estudio por igual.
+        tts.setPitch(VoicePreferences.pitch(appContext))
+        tts.setSpeechRate(VoicePreferences.speechRate(appContext))
+        val params = Bundle().apply {
+            // Volumen relativo (0.0 a 1.0) al volumen multimedia del teléfono.
+            putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, VoicePreferences.volume(appContext))
+        }
+        tts.speak(text, TextToSpeech.QUEUE_FLUSH, params, id)
     }
 
     /** Libera el motor. Llamar cuando la pantalla se destruye. */
@@ -65,8 +74,6 @@ class NaoVoice(context: Context) {
             problem = Problem.SpanishUnavailable
             return
         }
-        tts.setPitch(VOICE_PITCH)
-        tts.setSpeechRate(VOICE_SPEECH_RATE)
         tts.setAudioAttributes(
             AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_MEDIA)
@@ -115,11 +122,5 @@ class NaoVoice(context: Context) {
 
     companion object {
         private const val TAG = "NaoVoice"
-
-        /** 1.0 = normal. Un poco más agudo para sonar más tierna. */
-        const val VOICE_PITCH = 1.15f
-
-        /** 1.0 = normal. Ligeramente más lento para sonar cálida y no atropellada. */
-        const val VOICE_SPEECH_RATE = 0.95f
     }
 }

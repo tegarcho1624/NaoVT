@@ -1,4 +1,4 @@
-# NaoVT — Fase 12 (Modo Estudio / Pomodoro)
+# NaoVT — Fase 13 (Ajustes de Voz)
 
 Mascota virtual Naomi en Android (Jetpack Compose, tema oscuro).
 
@@ -14,6 +14,7 @@ Mascota virtual Naomi en Android (Jetpack Compose, tema oscuro).
 - Alertas: `alerts/` (AlarmManager, receptores, notificación y voz), `data/AlertRepository.kt` y `ui/alerts/` (pantalla Mis Alertas)
 - Frases: `data/PhraseRepository.kt` (JSON en SharedPreferences) y `ui/phrases/` (pantalla Frases de Nao)
 - Modo Estudio: `pomodoro/` (estado, AlarmManager, notificaciones, receptores) y `ui/pomodoro/` (pantalla)
+- Ajustes de Voz (volumen, tono, velocidad): `voice/VoicePreferences.kt` y `ui/voice/VoiceSettingsScreen.kt`; `NaoVoice` los lee cada vez que habla
 - Assets en `app/src/main/res/drawable/`
 
 APK: sube a GitHub y revisa Actions → *Build APK* → artefacto `NaoVT-debug-apk`.

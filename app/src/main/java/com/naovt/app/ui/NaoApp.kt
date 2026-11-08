@@ -20,6 +20,7 @@ import com.naovt.app.overlay.rememberOverlayController
 import com.naovt.app.ui.alerts.AlertsScreen
 import com.naovt.app.ui.phrases.PhrasesScreen
 import com.naovt.app.ui.pomodoro.PomodoroScreen
+import com.naovt.app.ui.voice.VoiceSettingsScreen
 import com.naovt.app.ui.vault.VaultScreen
 
 /**
@@ -40,6 +41,7 @@ fun NaoApp(
     var alertsOpen by rememberSaveable { mutableStateOf(false) }
     var phrasesOpen by rememberSaveable { mutableStateOf(false) }
     var pomodoroOpen by rememberSaveable { mutableStateOf(false) }
+    var voiceSettingsOpen by rememberSaveable { mutableStateOf(false) }
     val overlay = rememberOverlayController()
 
     LaunchedEffect(destination) {
@@ -57,6 +59,7 @@ fun NaoApp(
             onOpenAlerts = { alertsOpen = true },
             onOpenPhrases = { phrasesOpen = true },
             onOpenPomodoro = { pomodoroOpen = true },
+            onOpenVoiceSettings = { voiceSettingsOpen = true },
             isOverlayRunning = NaoOverlayService.isRunning,
             onToggleOverlay = { if (NaoOverlayService.isRunning) overlay.stop() else overlay.start() },
             alertDisplay = alertDisplay,
@@ -93,6 +96,14 @@ fun NaoApp(
             exit = fadeOut(),
         ) {
             PomodoroScreen(onClose = { pomodoroOpen = false })
+        }
+
+        AnimatedVisibility(
+            visible = voiceSettingsOpen,
+            enter = fadeIn() + slideInVertically { it / 12 },
+            exit = fadeOut(),
+        ) {
+            VoiceSettingsScreen(onClose = { voiceSettingsOpen = false })
         }
     }
 }
