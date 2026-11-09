@@ -1,4 +1,4 @@
-# NaoVT — Fase 13 (Ajustes de Voz)
+# NaoVT — Fase 14 (IA local: chat con Nao)
 
 Mascota virtual Naomi en Android (Jetpack Compose, tema oscuro).
 
@@ -15,6 +15,7 @@ Mascota virtual Naomi en Android (Jetpack Compose, tema oscuro).
 - Frases: `data/PhraseRepository.kt` (JSON en SharedPreferences) y `ui/phrases/` (pantalla Frases de Nao)
 - Modo Estudio: `pomodoro/` (estado, AlarmManager, notificaciones, receptores) y `ui/pomodoro/` (pantalla)
 - Ajustes de Voz (volumen, tono, velocidad): `voice/VoicePreferences.kt` y `ui/voice/VoiceSettingsScreen.kt`; `NaoVoice` los lee cada vez que habla
+- IA local (Llamatik / llama.cpp): `llm/` (modelo, generación por streaming, oraciones para la voz) y `ui/chat/` (pantalla de chat). El modelo .gguf se importa desde la app o va en `assets/models/` (ver `LEEME.txt`)
 - Assets en `app/src/main/res/drawable/`
 
 APK: sube a GitHub y revisa Actions → *Build APK* → artefacto `NaoVT-debug-apk`.

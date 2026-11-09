@@ -160,4 +160,27 @@
     <string name="voice_settings_reset">Restablecer</string>
     <string name="voice_settings_test_phrase">Hola, soy Nao. ¿Así suena mi voz?</string>
     <string name="voice_settings_muted">La voz de Nao está silenciada. Actívala con el interruptor de arriba.</string>
+
+    <!-- Chat con Nao (IA local) -->
+    <string name="chat_button">Hablar con Nao</string>
+    <string name="chat_title">Hablar con Nao</string>
+    <string name="chat_subtitle">En tu dispositivo, sin internet</string>
+    <string name="chat_close">Cerrar el chat</string>
+    <string name="chat_new">Nueva</string>
+    <string name="chat_empty">Escríbeme algo y te responderé.</string>
+    <string name="chat_input_hint">Escribe a Nao…</string>
+    <string name="chat_send">Enviar</string>
+    <string name="chat_stop">Detener</string>
+    <string name="chat_typing">Nao está escribiendo...</string>
+    <string name="chat_loading">Cargando el cerebro de Nao… puede tardar unos segundos.</string>
+    <string name="chat_importing">Importando el modelo… puede tardar varios minutos.</string>
+    <string name="chat_model_missing_title">Nao todavía no tiene cerebro</string>
+    <string name="chat_model_missing_text">Necesito un modelo de IA (un archivo .gguf). Impórtalo desde tu teléfono con el botón de abajo, o ponlo en app/src/main/assets/models/ antes de compilar.</string>
+    <string name="chat_import">Importar modelo (.gguf)</string>
+    <string name="chat_retry">Reintentar</string>
+    <string name="chat_load_failed_title">No pude cargar el modelo</string>
+    <string name="chat_import_not_gguf">Ese archivo no parece un modelo .gguf.</string>
+    <string name="chat_import_failed">No se pudo importar el modelo. ¿Hay espacio libre suficiente?</string>
+    <string name="chat_reply_error">Ay, algo salió mal al pensar mi respuesta. Inténtalo de nuevo.</string>
+    <string name="chat_reply_empty">(Nao no supo qué decir)</string>
 </resources>

@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -6,14 +8,14 @@ plugins {
 
 android {
     namespace = "com.naovt.app"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.naovt.app"
-        minSdk = 24
+        minSdk = 26 // Llamatik pide Android 8.0 (API 26) o superior
         targetSdk = 34
-        versionCode = 13
-        versionName = "0.13.0-ajustes-voz"
+        versionCode = 14
+        versionName = "0.14.0-ia-local"
     }
 
     buildTypes {
@@ -25,11 +27,18 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
-    }
     buildFeatures {
         compose = true
+    }
+    androidResources {
+        // Los modelos de IA no se comprimen dentro del APK (no se achican y tardaría mucho).
+        noCompress += "gguf"
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
     }
 }
 
@@ -45,4 +54,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.6")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.6")
     implementation("io.coil-kt:coil-compose:2.7.0")
+
+    // IA local (llama.cpp para Kotlin). Desde la versión 2.0 el artefacto se llama "core".
+    implementation("com.llamatik:core:2.0.0")
 }

@@ -41,6 +41,7 @@ import com.naovt.app.ui.avatar.NaoExpression
 import com.naovt.app.ui.avatar.NaoMouth
 import com.naovt.app.data.PhraseRepository
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import com.naovt.app.ui.avatar.NaoVTAvatar
@@ -63,6 +64,7 @@ fun NaoScreen(
     onOpenPhrases: () -> Unit = {},
     onOpenPomodoro: () -> Unit = {},
     onOpenVoiceSettings: () -> Unit = {},
+    onOpenChat: () -> Unit = {},
     isOverlayRunning: Boolean = false,
     onToggleOverlay: () -> Unit = {},
     alertDisplay: AlertDisplay? = null,
@@ -175,7 +177,7 @@ fun NaoScreen(
             )
         }
 
-        // Accesos a Mis Alertas, Frases de Nao, Modo Estudio y Ajustes de Voz (esquina superior izquierda).
+        // Accesos a Hablar con Nao, Mis Alertas, Frases de Nao, Modo Estudio y Ajustes de Voz (esquina superior izquierda).
         Column(
             modifier = Modifier
                 .align(Alignment.TopStart)
@@ -183,6 +185,11 @@ fun NaoScreen(
                 .padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            ExtendedFloatingActionButton(
+                onClick = onOpenChat,
+                icon = { Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null) },
+                text = { Text(stringResource(R.string.chat_button)) },
+            )
             ExtendedFloatingActionButton(
                 onClick = onOpenAlerts,
                 icon = { Icon(Icons.Default.Notifications, contentDescription = null) },

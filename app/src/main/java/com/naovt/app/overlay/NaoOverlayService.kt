@@ -427,8 +427,7 @@ class NaoOverlayService : Service() {
                 openApp(MainActivity.DESTINATION_VAULT)
             },
             RadialMenuItem("talk", R.drawable.ic_menu_talk, R.string.menu_talk) {
-                // Pendiente: aquí irá el chat con Nao (API).
-                Toast.makeText(this, R.string.menu_talk_soon, Toast.LENGTH_SHORT).show()
+                openApp(MainActivity.DESTINATION_CHAT)
             },
             RadialMenuItem("alerts", R.drawable.ic_menu_alerts, R.string.menu_alerts) {
                 openApp(MainActivity.DESTINATION_ALERTS)

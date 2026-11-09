@@ -14,7 +14,11 @@ import java.util.Locale
 /**
  * Voz de Nao basada en el TextToSpeech nativo de Android.
  *
- * - [isSpeaking] es observable desde Compose (sirve para animar la boca).
+ * - [speak] corta lo que estuviera diciendo y empieza una frase nueva.
+ * - [enqueue] pone una frase en cola, después de las que ya se están diciendo (para leer
+ *   una respuesta larga oración por oración, mientras todavía se está escribiendo).
+ * - [isSpeaking] es observable desde Compose (sirve para animar la boca) y es true mientras
+ *   quede alguna frase por decir.
  * - [problem] indica si la voz no se pudo preparar (por ejemplo, sin voz en español).
  * - No requiere permisos especiales.
  */
@@ -29,8 +33,9 @@ class NaoVoice(context: Context) {
         private set
 
     private var ready = false
-    private var pendingText: String? = null
-    private var currentUtteranceId: String? = null
+    private val pending = ArrayList<Pair<String, Int>>() // frases pedidas antes de que el motor esté listo
+    private val activeIds = HashSet<String>() // frases en curso; se toca desde varios hilos
+    private val lock = Any()
     private var utteranceCounter = 0
 
     private val appContext = context.applicationContext
@@ -39,18 +44,47 @@ class NaoVoice(context: Context) {
         if (status == TextToSpeech.SUCCESS) onEngineReady() else problem = Problem.EngineFailed
     }
 
-    /**
-     * Dice [text]. Si Nao ya está hablando, corta la frase anterior y empieza la nueva.
-     */
-    fun speak(text: String) {
+    /** Dice [text]. Si Nao ya está hablando, corta lo anterior y empieza la nueva. */
+    fun speak(text: String) = submit(text, TextToSpeech.QUEUE_FLUSH)
+
+    /** Dice [text] después de lo que ya se esté diciendo. */
+    fun enqueue(text: String) = submit(text, TextToSpeech.QUEUE_ADD)
+
+    /** Calla a Nao de inmediato y borra lo que estuviera en cola. */
+    fun stop() {
+        pending.clear()
+        synchronized(lock) {
+            activeIds.clear()
+            isSpeaking = false
+        }
+        if (ready) tts.stop()
+    }
+
+    /** Libera el motor. Llamar cuando la pantalla se destruye. */
+    fun shutdown() {
+        pending.clear()
+        tts.stop()
+        tts.shutdown()
+        synchronized(lock) {
+            activeIds.clear()
+            isSpeaking = false
+        }
+    }
+
+    private fun submit(text: String, mode: Int) {
         if (problem != null) return
         if (!VoicePreferences.isEnabled(appContext)) return // voz silenciada desde el menú
         if (!ready) {
-            pendingText = text // se dirá apenas el motor esté listo
+            // Se dirá apenas el motor esté listo.
+            if (mode == TextToSpeech.QUEUE_FLUSH) pending.clear()
+            pending.add(text to mode)
             return
         }
         val id = "nao-${++utteranceCounter}"
-        currentUtteranceId = id
+        synchronized(lock) {
+            if (mode == TextToSpeech.QUEUE_FLUSH) activeIds.clear()
+            activeIds.add(id)
+        }
         // Los ajustes de voz se leen cada vez que Nao habla: un cambio en "Ajustes de Voz"
         // suena en la siguiente frase, en las frases, las alertas y el Modo Estudio por igual.
         tts.setPitch(VoicePreferences.pitch(appContext))
@@ -59,14 +93,7 @@ class NaoVoice(context: Context) {
             // Volumen relativo (0.0 a 1.0) al volumen multimedia del teléfono.
             putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, VoicePreferences.volume(appContext))
         }
-        tts.speak(text, TextToSpeech.QUEUE_FLUSH, params, id)
-    }
-
-    /** Libera el motor. Llamar cuando la pantalla se destruye. */
-    fun shutdown() {
-        tts.stop()
-        tts.shutdown()
-        isSpeaking = false
+        tts.speak(text, mode, params, id)
     }
 
     private fun onEngineReady() {
@@ -82,8 +109,9 @@ class NaoVoice(context: Context) {
         )
         tts.setOnUtteranceProgressListener(progressListener)
         ready = true
-        pendingText?.let { speak(it) }
-        pendingText = null
+        val queued = ArrayList(pending)
+        pending.clear()
+        queued.forEach { (text, mode) -> submit(text, mode) }
     }
 
     /** Intenta es-MX, luego es-ES y por último cualquier español disponible. */
@@ -99,25 +127,29 @@ class NaoVoice(context: Context) {
         return false
     }
 
-    // Los callbacks llegan en un hilo secundario. Solo se hace caso a la frase actual,
-    // porque al cortar una frase, la anterior avisa que terminó (onStop) después de empezar la nueva.
+    // Los avisos llegan en un hilo secundario. Cada frase se apunta por su id: cuando ya no queda
+    // ninguna en curso, Nao deja de "hablar". Los avisos de frases cortadas (que ya no están en la
+    // lista) no cambian nada.
+    private fun finish(utteranceId: String?) {
+        synchronized(lock) {
+            activeIds.remove(utteranceId)
+            if (activeIds.isEmpty()) isSpeaking = false
+        }
+    }
+
     private val progressListener = object : UtteranceProgressListener() {
         override fun onStart(utteranceId: String?) {
-            if (utteranceId == currentUtteranceId) isSpeaking = true
+            synchronized(lock) {
+                if (utteranceId in activeIds) isSpeaking = true
+            }
         }
 
-        override fun onDone(utteranceId: String?) {
-            if (utteranceId == currentUtteranceId) isSpeaking = false
-        }
+        override fun onDone(utteranceId: String?) = finish(utteranceId)
 
-        override fun onStop(utteranceId: String?, interrupted: Boolean) {
-            if (utteranceId == currentUtteranceId) isSpeaking = false
-        }
+        override fun onStop(utteranceId: String?, interrupted: Boolean) = finish(utteranceId)
 
         @Deprecated("Deprecated in Java")
-        override fun onError(utteranceId: String?) {
-            if (utteranceId == currentUtteranceId) isSpeaking = false
-        }
+        override fun onError(utteranceId: String?) = finish(utteranceId)
     }
 
     companion object {

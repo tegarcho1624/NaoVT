@@ -1,0 +1,13 @@
+Modelos de IA de Nao (.gguf)
+
+Opcion A (recomendada): instala la app y usa el boton "Importar modelo" en la pantalla
+"Hablar con Nao". El archivo se copia a la memoria interna de la app.
+
+Opcion B: pon aqui tu archivo .gguf antes de compilar. Ojo:
+  - GitHub no acepta archivos de mas de 100 MB (por eso *.gguf esta en .gitignore).
+  - El modelo queda dentro del APK Y se copia a la memoria interna: ocupa el doble de espacio.
+
+Modelos pequenos que funcionan bien en tablets/telefonos (cuantizados Q4_K_M, instruct/chat):
+  - Qwen2.5 0.5B o 1.5B Instruct
+  - Gemma 3 1B Instruct
+  - Llama 3.2 1B Instruct
