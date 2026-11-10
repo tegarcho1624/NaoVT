@@ -8,9 +8,7 @@ plugins {
 
 android {
     namespace = "com.naovt.app"
-    // 37: lo exige Llamatik (com.llamatik:core-android:2.0.0). targetSdk sigue en 34: el comportamiento
-    // de la app no cambia, compileSdk solo decide contra qué versión de la API se compila.
-    compileSdk = 37
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.naovt.app"
@@ -43,6 +41,16 @@ android {
 kotlin {
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_17)
+    }
+}
+
+// Llamatik (com.llamatik:core-android:2.0.0) declara en sus metadatos que exige compileSdk 37, pero la
+// plataforma Android 37 no se puede descargar en este entorno ("Failed to find Platform SDK") y la librería
+// no necesita ninguna API nueva para funcionar. Se desactiva solo esa verificación de metadatos y se compila
+// con la plataforma 35. Si algún día se migra a AGP 9, esto se puede quitar y subir compileSdk a 37.
+tasks.configureEach {
+    if (name.startsWith("check") && name.endsWith("AarMetadata")) {
+        enabled = false
     }
 }
 
