@@ -200,4 +200,27 @@
     <string name="quick_talk">Hablar con Nao rápido</string>
     <string name="room_nao_room">Cuarto de Naomi</string>
     <string name="room_sala_de_estar">Sala de estar</string>
+
+    <!-- Gestionar Habitaciones -->
+    <string name="rooms_title">Habitaciones</string>
+    <string name="rooms_close">Cerrar Habitaciones</string>
+    <string name="rooms_official">Oficiales</string>
+    <string name="rooms_mine">Mis Habitaciones</string>
+    <string name="rooms_mine_empty">Aún no tienes habitaciones propias. ¡Añade la primera con el botón +!</string>
+    <string name="rooms_add">Añadir habitación</string>
+    <string name="rooms_type_title">¿Imagen o Video?</string>
+    <string name="rooms_type_image">Imagen</string>
+    <string name="rooms_type_video">Video</string>
+    <string name="rooms_name_title">Nombre de la habitación</string>
+    <string name="rooms_name_label">Nombre (ej. Bosque Mágico)</string>
+    <string name="rooms_save">Guardar</string>
+    <string name="rooms_cancel">Cancelar</string>
+    <string name="rooms_active">Habitación activa</string>
+    <string name="rooms_delete">Eliminar habitación</string>
+    <string name="rooms_delete_title">¿Eliminar esta habitación?</string>
+    <string name="rooms_delete_message">Se borrará «%1$s» y su archivo. Si es la habitación activa, Nao volverá a la Sala de estar.</string>
+    <string name="rooms_delete_confirm">Eliminar</string>
+    <string name="rooms_copying">Copiando el archivo…</string>
+    <string name="rooms_copy_failed">No se pudo copiar el archivo. ¿Hay espacio libre suficiente?</string>
+    <string name="rooms_video_failed">No se pudo reproducir el video de esta habitación.</string>
 </resources>

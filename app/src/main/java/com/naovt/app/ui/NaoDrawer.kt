@@ -39,7 +39,6 @@ import androidx.compose.ui.unit.dp
 import com.naovt.app.R
 import com.naovt.app.ui.avatar.NaoExpression
 import com.naovt.app.ui.avatar.NaoHeadBadge
-import com.naovt.app.ui.room.Room
 
 /**
  * Contenido del menú lateral: la foto y el nombre de Nao arriba y, debajo, todos los accesos
@@ -115,35 +114,5 @@ private fun DrawerItem(icon: ImageVector, label: String, onClick: () -> Unit, af
             afterClick()
         },
         modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
-    )
-}
-
-/** Selector de habitación: lista las habitaciones y marca la actual. */
-@Composable
-fun RoomPickerDialog(current: Room, onSelect: (Room) -> Unit, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.change_room)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Room.entries.forEach { room ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onSelect(room) }
-                            .padding(vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        RadioButton(selected = room == current, onClick = null)
-                        Spacer(Modifier.width(12.dp))
-                        Text(stringResource(room.label), style = MaterialTheme.typography.bodyLarge)
-                    }
-                }
-            }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.drawer_cancel)) }
-        },
     )
 }

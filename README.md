@@ -1,4 +1,4 @@
-# NaoVT — Fase 16 (Menú lateral)
+# NaoVT — Fase 17 (Habitaciones personalizadas)
 
 Mascota virtual Naomi en Android (Jetpack Compose, tema oscuro).
 
@@ -18,6 +18,7 @@ Mascota virtual Naomi en Android (Jetpack Compose, tema oscuro).
 - IA local (Llamatik / llama.cpp): `llm/` (modelo, generación por streaming, oraciones para la voz) y `ui/chat/` (pantalla de chat). El modelo .gguf se importa desde la app o va en `assets/models/` (ver `LEEME.txt`)
 - Mini chat de voz: `llm/SpokenAnswerer.kt` (respuesta solo hablada), `ui/MiniChatPanel.kt` (toque largo sobre Nao) y `overlay/MiniChatPanelView.kt` (botón "Hablar" del menú radial)
 - Menú lateral (reemplaza a los botones flotantes): `ui/NaoDrawer.kt` y `ui/NaoScreen.kt`
+- Habitaciones: `data/RoomRepository.kt` (JSON en SharedPreferences + copia en filesDir/habitaciones/), `ui/rooms/` (pantalla Gestionar Habitaciones) y `ui/room/` (fondo imagen o video con ExoPlayer)
 - Assets en `app/src/main/res/drawable/`
 
 APK: sube a GitHub y revisa Actions → *Build APK* → artefacto `NaoVT-debug-apk`.

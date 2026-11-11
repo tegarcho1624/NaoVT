@@ -20,6 +20,7 @@ import com.naovt.app.overlay.rememberOverlayController
 import com.naovt.app.ui.alerts.AlertsScreen
 import com.naovt.app.ui.chat.ChatScreen
 import com.naovt.app.ui.phrases.PhrasesScreen
+import com.naovt.app.ui.rooms.RoomsScreen
 import com.naovt.app.ui.pomodoro.PomodoroScreen
 import com.naovt.app.ui.voice.VoiceSettingsScreen
 import com.naovt.app.ui.vault.VaultScreen
@@ -44,6 +45,10 @@ fun NaoApp(
     var pomodoroOpen by rememberSaveable { mutableStateOf(false) }
     var voiceSettingsOpen by rememberSaveable { mutableStateOf(false) }
     var chatOpen by rememberSaveable { mutableStateOf(false) }
+    var roomsOpen by rememberSaveable { mutableStateOf(false) }
+    // Si alguna pantalla tapa el fondo, el video se pausa (ahorra batería).
+    val screenCoversBackground = vaultOpen || alertsOpen || phrasesOpen || pomodoroOpen ||
+        voiceSettingsOpen || chatOpen || roomsOpen
     val overlay = rememberOverlayController()
 
     LaunchedEffect(destination) {
@@ -64,6 +69,8 @@ fun NaoApp(
             onOpenPomodoro = { pomodoroOpen = true },
             onOpenVoiceSettings = { voiceSettingsOpen = true },
             onOpenChat = { chatOpen = true },
+            onOpenRooms = { roomsOpen = true },
+            backgroundPaused = screenCoversBackground,
             isOverlayRunning = NaoOverlayService.isRunning,
             onToggleOverlay = { if (NaoOverlayService.isRunning) overlay.stop() else overlay.start() },
             alertDisplay = alertDisplay,
@@ -116,6 +123,14 @@ fun NaoApp(
             exit = fadeOut(),
         ) {
             ChatScreen(onClose = { chatOpen = false })
+        }
+
+        AnimatedVisibility(
+            visible = roomsOpen,
+            enter = fadeIn() + slideInVertically { it / 12 },
+            exit = fadeOut(),
+        ) {
+            RoomsScreen(onClose = { roomsOpen = false })
         }
     }
 }

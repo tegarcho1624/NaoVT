@@ -1,6 +1,8 @@
 package com.naovt.app.ui
 
 import android.widget.Toast
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.naovt.app.ui.rooms.RoomsViewModel
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
@@ -69,7 +71,6 @@ import androidx.compose.material.icons.filled.Star
 import com.naovt.app.ui.avatar.NaoVTAvatar
 import com.naovt.app.ui.avatar.rememberBlink
 import com.naovt.app.ui.avatar.rememberTalkingMouth
-import com.naovt.app.ui.room.Room
 import com.naovt.app.ui.room.RoomBackground
 import com.naovt.app.voice.NaoVoice
 import com.naovt.app.voice.rememberNaoVoice
@@ -91,12 +92,16 @@ fun NaoScreen(
     onOpenPomodoro: () -> Unit = {},
     onOpenVoiceSettings: () -> Unit = {},
     onOpenChat: () -> Unit = {},
+    onOpenRooms: () -> Unit = {},
+    backgroundPaused: Boolean = false,
     isOverlayRunning: Boolean = false,
     onToggleOverlay: () -> Unit = {},
     alertDisplay: AlertDisplay? = null,
     onAlertDisplayDone: () -> Unit = {},
 ) {
-    var room by rememberSaveable { mutableStateOf(Room.NaoRoom) }
+    // Habitación activa (predeterminada o propia, imagen o video).
+    val roomsViewModel: RoomsViewModel = viewModel()
+    val activeRoom = roomsViewModel.activa
     var tapCount by remember { mutableIntStateOf(0) }
     var expression by remember { mutableStateOf(NaoExpression.Neutral) }
     var lastPhrase by remember { mutableStateOf<String?>(null) }
@@ -132,7 +137,6 @@ fun NaoScreen(
     // Menú lateral (reemplaza a los botones flotantes de antes).
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
-    var showRoomPicker by remember { mutableStateOf(false) }
     BackHandler(enabled = drawerState.isOpen) { scope.launch { drawerState.close() } }
 
     // Avisa si el teléfono no puede hablar (sin voz en español o sin motor TTS).
@@ -175,7 +179,7 @@ fun NaoScreen(
                 onPhrases = onOpenPhrases,
                 onPomodoro = onOpenPomodoro,
                 onVoiceSettings = onOpenVoiceSettings,
-                onChangeRoom = { showRoomPicker = true },
+                onChangeRoom = onOpenRooms,
                 onVault = onOpenVault,
                 onToggleOverlay = onToggleOverlay,
                 afterClick = { scope.launch { drawerState.close() } }, // se cierra solo al elegir
@@ -183,7 +187,7 @@ fun NaoScreen(
         },
     ) {
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        RoomBackground(room = room)
+        RoomBackground(habitacion = activeRoom, paused = backgroundPaused)
 
         NaoVTAvatar(
             expression = shownExpression,
@@ -265,18 +269,6 @@ fun NaoScreen(
                 .padding(16.dp),
         ) {
             Icon(Icons.AutoMirrored.Filled.Send, contentDescription = stringResource(R.string.quick_talk))
-        }
-
-        // Selector de habitación (opción "Cambiar Habitación" del menú).
-        if (showRoomPicker) {
-            RoomPickerDialog(
-                current = room,
-                onSelect = {
-                    room = it
-                    showRoomPicker = false
-                },
-                onDismiss = { showRoomPicker = false },
-            )
         }
 
         // Texto de la alerta que abrió la app; tocarlo lo cierra.
