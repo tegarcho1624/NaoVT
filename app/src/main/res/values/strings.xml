@@ -191,4 +191,13 @@
     <string name="mini_chat_no_model">Nao todavía no tiene cerebro. Importa un modelo en «Hablar con Nao».</string>
     <string name="mini_chat_load_failed">No se pudo cargar el modelo de Nao.</string>
     <string name="mini_chat_error">Nao no pudo pensar su respuesta. Inténtalo de nuevo.</string>
+
+    <!-- Menú lateral -->
+    <string name="drawer_open">Abrir el menú</string>
+    <string name="drawer_name">Nao</string>
+    <string name="drawer_tagline">Tu mascota virtual</string>
+    <string name="drawer_cancel">Cancelar</string>
+    <string name="quick_talk">Hablar con Nao rápido</string>
+    <string name="room_nao_room">Cuarto de Naomi</string>
+    <string name="room_sala_de_estar">Sala de estar</string>
 </resources>

@@ -14,8 +14,8 @@ android {
         applicationId = "com.naovt.app"
         minSdk = 26 // Llamatik pide Android 8.0 (API 26) o superior
         targetSdk = 34
-        versionCode = 15
-        versionName = "0.15.0-mini-chat-voz"
+        versionCode = 16
+        versionName = "0.16.0-menu-lateral"
     }
 
     buildTypes {

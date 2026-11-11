@@ -1,6 +1,17 @@
 package com.naovt.app.ui
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.rememberDrawerState
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.ime
@@ -118,6 +129,12 @@ fun NaoScreen(
     }
     DisposableEffect(answerer) { onDispose { answerer.cancel() } }
 
+    // Menú lateral (reemplaza a los botones flotantes de antes).
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
+    var showRoomPicker by remember { mutableStateOf(false) }
+    BackHandler(enabled = drawerState.isOpen) { scope.launch { drawerState.close() } }
+
     // Avisa si el teléfono no puede hablar (sin voz en español o sin motor TTS).
     LaunchedEffect(voice.problem) {
         val message = when (voice.problem) {
@@ -148,6 +165,23 @@ fun NaoScreen(
         }
     }
 
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            NaoDrawerContent(
+                isOverlayRunning = isOverlayRunning,
+                onChat = onOpenChat,
+                onAlerts = onOpenAlerts,
+                onPhrases = onOpenPhrases,
+                onPomodoro = onOpenPomodoro,
+                onVoiceSettings = onOpenVoiceSettings,
+                onChangeRoom = { showRoomPicker = true },
+                onVault = onOpenVault,
+                onToggleOverlay = onToggleOverlay,
+                afterClick = { scope.launch { drawerState.close() } }, // se cierra solo al elegir
+            )
+        },
+    ) {
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         RoomBackground(room = room)
 
@@ -206,72 +240,42 @@ fun NaoScreen(
             )
         }
 
-        Column(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .safeDrawingPadding()
-                .padding(12.dp),
-            horizontalAlignment = Alignment.End,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            ExtendedFloatingActionButton(onClick = { room = room.next() }) {
-                Text(stringResource(R.string.change_room))
-            }
-            ExtendedFloatingActionButton(
-                onClick = onOpenVault,
-                icon = { Icon(Icons.Default.Favorite, contentDescription = null) },
-                text = { Text(stringResource(R.string.vault_button)) },
-            )
-            ExtendedFloatingActionButton(
-                onClick = onToggleOverlay,
-                icon = {
-                    Icon(
-                        if (isOverlayRunning) Icons.Default.Close else Icons.Default.Face,
-                        contentDescription = null,
-                    )
-                },
-                text = {
-                    Text(
-                        stringResource(
-                            if (isOverlayRunning) R.string.overlay_stop_button else R.string.overlay_button
-                        )
-                    )
-                },
-            )
-        }
-
-        // Accesos a Hablar con Nao, Mis Alertas, Frases de Nao, Modo Estudio y Ajustes de Voz (esquina superior izquierda).
-        Column(
+        // Botón del menú lateral (esquina superior izquierda).
+        IconButton(
+            onClick = { scope.launch { drawerState.open() } },
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .safeDrawingPadding()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+                .padding(12.dp)
+                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f), CircleShape),
         ) {
-            ExtendedFloatingActionButton(
-                onClick = onOpenChat,
-                icon = { Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null) },
-                text = { Text(stringResource(R.string.chat_button)) },
+            Icon(
+                Icons.Default.Menu,
+                contentDescription = stringResource(R.string.drawer_open),
+                tint = MaterialTheme.colorScheme.onSurface,
             )
-            ExtendedFloatingActionButton(
-                onClick = onOpenAlerts,
-                icon = { Icon(Icons.Default.Notifications, contentDescription = null) },
-                text = { Text(stringResource(R.string.alerts_button)) },
-            )
-            ExtendedFloatingActionButton(
-                onClick = onOpenPhrases,
-                icon = { Icon(Icons.Default.Edit, contentDescription = null) },
-                text = { Text(stringResource(R.string.phrases_button)) },
-            )
-            ExtendedFloatingActionButton(
-                onClick = onOpenPomodoro,
-                icon = { Icon(Icons.Default.Star, contentDescription = null) },
-                text = { Text(stringResource(R.string.pomodoro_button)) },
-            )
-            ExtendedFloatingActionButton(
-                onClick = onOpenVoiceSettings,
-                icon = { Icon(Icons.Default.Settings, contentDescription = null) },
-                text = { Text(stringResource(R.string.voice_settings_button)) },
+        }
+
+        // "Hablar" rápido: abre o cierra el mini chat de voz (lo mismo que mantener presionada a Nao).
+        FloatingActionButton(
+            onClick = { miniChatOpen = !miniChatOpen },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .safeDrawingPadding()
+                .padding(16.dp),
+        ) {
+            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = stringResource(R.string.quick_talk))
+        }
+
+        // Selector de habitación (opción "Cambiar Habitación" del menú).
+        if (showRoomPicker) {
+            RoomPickerDialog(
+                current = room,
+                onSelect = {
+                    room = it
+                    showRoomPicker = false
+                },
+                onDismiss = { showRoomPicker = false },
             )
         }
 
@@ -295,4 +299,5 @@ fun NaoScreen(
             }
         }
     }
+    } // fin del menú lateral
 }
