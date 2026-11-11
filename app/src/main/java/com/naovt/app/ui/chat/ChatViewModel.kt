@@ -46,7 +46,7 @@ interface ChatSpeaker {
 class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
     private val app = application
-    private val repository = NaoLLMRepository(application)
+    private val repository = NaoLLMRepository.get(application)
 
     val messages = mutableStateListOf<ChatMessage>()
 
@@ -63,6 +63,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
     private var nextId = 0L
     private var currentReply: ReplySession? = null
+    private var holdsModel = false // el chat mantiene el modelo cargado mientras está abierto
 
     /** Carga el modelo la primera vez que se abre el chat. */
     fun ensureModelLoaded() {
@@ -132,12 +133,19 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
     override fun onCleared() {
         currentReply?.cancel()
-        repository.cancelar()
-        repository.unload()
+        // El modelo lo comparten los mini chats: se suelta, y si nadie más lo usa se descarga solo.
+        if (holdsModel) {
+            holdsModel = false
+            repository.release()
+        }
         super.onCleared()
     }
 
     private fun loadModel() {
+        if (!holdsModel) {
+            repository.acquire()
+            holdsModel = true
+        }
         modelState = ChatModelState.Loading
         repository.loadModel { result ->
             modelState = when (result) {

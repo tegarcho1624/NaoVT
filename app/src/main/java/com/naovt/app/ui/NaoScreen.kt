@@ -1,6 +1,17 @@
 package com.naovt.app.ui
 
 import android.widget.Toast
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.unit.Dp
+import com.naovt.app.llm.SpokenAnswerer
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.Notifications
@@ -56,6 +67,10 @@ import kotlinx.coroutines.delay
 private const val LOVED_DURATION_MS = 2000L
 private const val ALERT_DISPLAY_MS = 8000L
 
+// Mini chat de voz (toque largo sobre Nao).
+private val MINI_CHAT_WIDTH = 300.dp
+private val MINI_CHAT_HEIGHT_GUESS = 96.dp
+
 /** Pantalla principal: fondo + avatar + botón para cambiar de habitación. */
 @Composable
 fun NaoScreen(
@@ -87,6 +102,22 @@ fun NaoScreen(
     )
     val talkingMouth = rememberTalkingMouth(voice.isSpeaking, openMouth = NaoMouth.Happy)
 
+    // Mini chat de voz: escribes y Nao responde solo hablando (su texto no se muestra).
+    val haptics = LocalHapticFeedback.current
+    val density = LocalDensity.current
+    var miniChatOpen by remember { mutableStateOf(false) }
+    var miniChatText by remember { mutableStateOf("") }
+    var miniChatThinking by remember { mutableStateOf(false) }
+    val answerer = remember {
+        SpokenAnswerer(
+            context = context,
+            speaker = { text, first -> if (first) voice.speak(text) else voice.enqueue(text) },
+            onThinkingChanged = { miniChatThinking = it },
+            onProblem = { message -> Toast.makeText(context, message, Toast.LENGTH_LONG).show() },
+        )
+    }
+    DisposableEffect(answerer) { onDispose { answerer.cancel() } }
+
     // Avisa si el teléfono no puede hablar (sin voz en español o sin motor TTS).
     LaunchedEffect(voice.problem) {
         val message = when (voice.problem) {
@@ -117,7 +148,7 @@ fun NaoScreen(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         RoomBackground(room = room)
 
         NaoVTAvatar(
@@ -129,7 +160,13 @@ fun NaoScreen(
                 .align(Alignment.BottomCenter)
                 .fillMaxHeight(0.85f)
                 .pointerInput(Unit) {
-                    detectTapGestures {
+                    detectTapGestures(
+                        // Toque largo: abre o cierra el mini chat de voz.
+                        onLongPress = {
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            miniChatOpen = !miniChatOpen
+                        },
+                        onTap = {
                         val phrase = phraseRepository.random(previous = lastPhrase)
                         lastPhrase = phrase
                         if (voice.isSpeaking) {
@@ -139,9 +176,35 @@ fun NaoScreen(
                             pendingPhrase = phrase
                             tapCount++ // cariño primero; la frase se dice al terminar
                         }
-                    }
+                        },
+                    )
                 },
         )
+
+        // Panel del mini chat, al lado de Nao (o sobre ella si la pantalla es angosta).
+        if (miniChatOpen) {
+            val naoHeight = maxHeight * 0.85f
+            val naoWidth = minOf(naoHeight * (1024f / 1536f), maxWidth)
+            val panelWidth = minOf(MINI_CHAT_WIDTH, maxWidth - 32.dp)
+            val sideFits = (maxWidth - naoWidth) / 2 >= panelWidth + 16.dp
+            val panelX: Dp = if (sideFits) (maxWidth + naoWidth) / 2 + 8.dp else (maxWidth - panelWidth) / 2
+            val desiredY: Dp = if (sideFits) maxHeight * 0.30f else maxHeight - 168.dp
+            // Que el teclado nunca tape el panel.
+            val imeBottom = with(density) { WindowInsets.ime.getBottom(density).toDp() }
+            val panelY = minOf(desiredY, maxHeight - imeBottom - MINI_CHAT_HEIGHT_GUESS - 16.dp)
+                .coerceAtLeast(0.dp)
+
+            MiniChatPanel(
+                value = miniChatText,
+                onValueChange = { miniChatText = it },
+                thinking = miniChatThinking,
+                onSend = { if (answerer.ask(miniChatText)) miniChatText = "" },
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .offset(x = panelX, y = panelY)
+                    .width(panelWidth),
+            )
+        }
 
         Column(
             modifier = Modifier

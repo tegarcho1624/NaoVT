@@ -18,11 +18,18 @@ sealed interface LlmLoadResult {
  * Cerebro local de Nao: carga un modelo .gguf con Llamatik (llama.cpp) y genera respuestas
  * por streaming, sin internet.
  *
+ * Hay UNA sola instancia para toda la app ([get]), porque el modelo cargado en memoria también es
+ * único: lo comparten el chat completo, el mini chat de voz de la pantalla principal y el de Nao flotante.
+ *
+ * Memoria: quien usa el modelo llama a [acquire] y, al terminar, a [release]. Cuando nadie lo está
+ * usando, se descarga solo tras [IDLE_UNLOAD_MS] para no ocupar RAM de más. La siguiente vez que
+ * se necesite se vuelve a cargar (tarda unos segundos).
+ *
  * - Todo lo pesado (copiar el modelo, cargarlo, generar) corre en un solo hilo aparte, de uno en uno.
- * - Los avisos (onToken, onDone, onError y el resultado de la carga) llegan siempre al hilo principal,
- *   así que se pueden usar directo desde la interfaz.
+ * - Los avisos (onToken, onDone, onError y el resultado de la carga) llegan siempre al hilo principal.
+ * - [acquire] y [release] se llaman desde el hilo principal.
  */
-class NaoLLMRepository(context: Context) {
+class NaoLLMRepository private constructor(context: Context) {
 
     private val appContext = context.applicationContext
     private val executor = Executors.newSingleThreadExecutor { runnable ->
@@ -33,10 +40,29 @@ class NaoLLMRepository(context: Context) {
     @Volatile
     private var loaded = false
 
+    private var holders = 0
+    private val unloadWhenIdle = Runnable { if (holders == 0) unload() }
+
     val isLoaded: Boolean get() = loaded
+
+    /** Marca que alguien está usando el modelo: no se descargará mientras tanto. */
+    fun acquire() {
+        holders++
+        mainHandler.removeCallbacks(unloadWhenIdle)
+    }
+
+    /** Avisa que ya no se usa. Si nadie más lo usa, se descargará tras un rato. */
+    fun release() {
+        if (holders > 0) holders--
+        if (holders == 0) {
+            mainHandler.removeCallbacks(unloadWhenIdle)
+            mainHandler.postDelayed(unloadWhenIdle, IDLE_UNLOAD_MS)
+        }
+    }
 
     /** Busca el modelo (en assets o importado) y lo carga en memoria. Si ya está cargado, responde Ready. */
     fun loadModel(onResult: (LlmLoadResult) -> Unit) {
+        mainHandler.removeCallbacks(unloadWhenIdle)
         executor.execute {
             val result = if (loaded) LlmLoadResult.Ready else loadBlocking()
             mainHandler.post { onResult(result) }
@@ -117,15 +143,27 @@ class NaoLLMRepository(context: Context) {
         LlmLoadResult.Failed(e.message ?: "Error desconocido al cargar el modelo")
     }
 
-    private companion object {
-        const val TAG = "NaoLLMRepository"
+    companion object {
+        private const val TAG = "NaoLLMRepository"
+
+        /** Tiempo sin uso tras el cual se libera la memoria del modelo. */
+        private const val IDLE_UNLOAD_MS = 3 * 60_000L
 
         /** Personalidad de Nao. Corta a propósito: va más rápido y se lee mejor en voz alta. */
-        const val SYSTEM_PROMPT =
+        private const val SYSTEM_PROMPT =
             "Eres Nao, una mascota virtual cariñosa y juguetona que vive en el dispositivo de tu persona favorita. " +
                 "Respondes siempre en español, con frases cortas y naturales (máximo 3 frases), " +
                 "sin listas, sin emojis y sin formato especial. " +
                 "Hablas con ternura y cercanía; si te cuentan algo difícil, primero consuelas. " +
                 "No finjas ser una persona real. Responde solo como Nao, sin escribir lo que diría el usuario."
+
+        @Volatile
+        private var instance: NaoLLMRepository? = null
+
+        /** La única instancia de la app. */
+        fun get(context: Context): NaoLLMRepository =
+            instance ?: synchronized(this) {
+                instance ?: NaoLLMRepository(context.applicationContext).also { instance = it }
+            }
     }
 }

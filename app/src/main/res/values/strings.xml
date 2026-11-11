@@ -183,4 +183,12 @@
     <string name="chat_import_failed">No se pudo importar el modelo. ¿Hay espacio libre suficiente?</string>
     <string name="chat_reply_error">Ay, algo salió mal al pensar mi respuesta. Inténtalo de nuevo.</string>
     <string name="chat_reply_empty">(Nao no supo qué decir)</string>
+
+    <!-- Mini chat de voz -->
+    <string name="mini_chat_hint">Escribe a Nao…</string>
+    <string name="mini_chat_send">Enviar</string>
+    <string name="mini_chat_muted">La voz de Nao está silenciada. Actívala para que te responda hablando.</string>
+    <string name="mini_chat_no_model">Nao todavía no tiene cerebro. Importa un modelo en «Hablar con Nao».</string>
+    <string name="mini_chat_load_failed">No se pudo cargar el modelo de Nao.</string>
+    <string name="mini_chat_error">Nao no pudo pensar su respuesta. Inténtalo de nuevo.</string>
 </resources>

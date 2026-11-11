@@ -31,6 +31,7 @@ import kotlin.math.roundToInt
 import com.naovt.app.MainActivity
 import com.naovt.app.R
 import com.naovt.app.data.PhraseRepository
+import com.naovt.app.llm.SpokenAnswerer
 import com.naovt.app.voice.NaoVoice
 import com.naovt.app.voice.VoicePreferences
 
@@ -60,6 +61,18 @@ class NaoOverlayService : Service() {
     private var voice: NaoVoice? = null
     private var lastPhrase: String? = null
     private var talkWaitUntil = 0L
+
+    // Panel de texto para hablar con Nao (botón "Hablar" del menú radial).
+    private var panelView: MiniChatPanelView? = null
+    private var panelParams: WindowManager.LayoutParams? = null
+    private var answererInstance: SpokenAnswerer? = null
+    private val answerer: SpokenAnswerer
+        get() = answererInstance ?: SpokenAnswerer(
+            context = this,
+            speaker = ::speakAnswer,
+            onThinkingChanged = { panelView?.setThinking(it) },
+            onProblem = { message -> Toast.makeText(this, message, Toast.LENGTH_LONG).show() },
+        ).also { answererInstance = it }
 
     // Menú radial (mantener presionado a Nao).
     private var menuView: RadialMenuView? = null
@@ -126,6 +139,7 @@ class NaoOverlayService : Service() {
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         closeMenu()
+        closeTextPanel()
         // Rotación: ajustar los límites de tamaño y mantener a Nao dentro de la pantalla.
         refreshSizeLimits()
         resizeBy(1f)
@@ -135,6 +149,9 @@ class NaoOverlayService : Service() {
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
         closeMenu()
+        closeTextPanel()
+        answererInstance?.cancel()
+        answererInstance = null
         overlay?.let { view ->
             runCatching { windowManager.removeView(view) }
             view.release()
@@ -229,6 +246,7 @@ class NaoOverlayService : Service() {
         params.x = x.coerceIn(0, (screen.x - overlaySize.x).coerceAtLeast(0))
         params.y = y.coerceIn(0, (screen.y - overlaySize.y).coerceAtLeast(0))
         runCatching { windowManager.updateViewLayout(view, params) }
+        repositionTextPanel() // el panel de texto acompaña a Nao cuando la arrastran
     }
 
     /** Pellizco: cambia el ancho de Nao por [factor], manteniendo su centro en el mismo lugar. */
@@ -292,6 +310,7 @@ class NaoOverlayService : Service() {
                 Intent.ACTION_SCREEN_OFF -> {
                     stopBlinking()
                     closeMenu()
+                    closeTextPanel()
                 }
                 Intent.ACTION_SCREEN_ON -> scheduleBlink()
             }
@@ -427,7 +446,7 @@ class NaoOverlayService : Service() {
                 openApp(MainActivity.DESTINATION_VAULT)
             },
             RadialMenuItem("talk", R.drawable.ic_menu_talk, R.string.menu_talk) {
-                openApp(MainActivity.DESTINATION_CHAT)
+                toggleTextPanel()
             },
             RadialMenuItem("alerts", R.drawable.ic_menu_alerts, R.string.menu_alerts) {
                 openApp(MainActivity.DESTINATION_ALERTS)
@@ -496,6 +515,111 @@ class NaoOverlayService : Service() {
         menuView?.let { runCatching { windowManager.removeView(it) } }
         menuView = null
     }
+
+    // endregion
+
+    // region Panel de texto (hablar con Nao)
+
+    /** "Hablar": abre el panel de texto junto a Nao; si ya está abierto, lo cierra. */
+    private fun toggleTextPanel() {
+        if (panelView != null) closeTextPanel() else showTextPanel()
+    }
+
+    private fun showTextPanel() {
+        if (overlay == null || panelView != null) return
+        val screen = screenSize()
+        val panelWidth = min(dp(PANEL_WIDTH_DP), screen.x - dp(16))
+
+        val view = MiniChatPanelView(
+            context = this,
+            onSend = { text -> answerer.ask(text) },
+            onClose = ::closeTextPanel,
+        )
+        // Sin FLAG_NOT_FOCUSABLE: con foco, Android abre el teclado. NOT_TOUCH_MODAL deja pasar los
+        // toques de afuera. ADJUST_PAN sube la ventana si el teclado la taparía.
+        val params = WindowManager.LayoutParams(
+            panelWidth,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            overlayWindowType(),
+            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT,
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN or
+                WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE
+        }
+        positionTextPanel(params, panelWidth)
+
+        try {
+            windowManager.addView(view, params)
+        } catch (e: Exception) {
+            Log.e(TAG, "No se pudo mostrar el panel de texto", e)
+            return
+        }
+        panelView = view
+        panelParams = params
+        view.requestKeyboard()
+    }
+
+    private fun closeTextPanel() {
+        val view = panelView ?: return
+        view.prepareToClose()
+        runCatching { windowManager.removeView(view) }
+        panelView = null
+        panelParams = null
+    }
+
+    private fun repositionTextPanel() {
+        val view = panelView ?: return
+        val params = panelParams ?: return
+        positionTextPanel(params, params.width)
+        runCatching { windowManager.updateViewLayout(view, params) }
+    }
+
+    /** A la derecha de Nao; si no cabe, a la izquierda; si tampoco, debajo o arriba de ella. */
+    private fun positionTextPanel(params: WindowManager.LayoutParams, panelWidth: Int) {
+        val nao = layoutParams ?: return
+        val screen = screenSize()
+        val gap = dp(8)
+        val estimatedHeight = dp(PANEL_HEIGHT_GUESS_DP)
+        val naoRight = nao.x + overlaySize.x
+
+        when {
+            screen.x - naoRight >= panelWidth + gap -> {
+                params.x = naoRight + gap
+                params.y = nao.y + overlaySize.y / 5
+            }
+            nao.x >= panelWidth + gap -> {
+                params.x = nao.x - gap - panelWidth
+                params.y = nao.y + overlaySize.y / 5
+            }
+            else -> {
+                params.x = (screen.x - panelWidth) / 2
+                val below = nao.y + overlaySize.y + gap
+                params.y = if (below + estimatedHeight <= screen.y) below else nao.y - gap - estimatedHeight
+            }
+        }
+        params.x = params.x.coerceIn(0, (screen.x - panelWidth).coerceAtLeast(0))
+        params.y = params.y.coerceIn(0, (screen.y - estimatedHeight).coerceAtLeast(0))
+    }
+
+    /** Dice una oración de la respuesta de la IA, con la boca animada. */
+    private fun speakAnswer(text: String, first: Boolean) {
+        val engine = voice ?: NaoVoice(this).also { voice = it }
+        if (first) engine.speak(text) else engine.enqueue(text)
+
+        talkWaitUntil = SystemClock.uptimeMillis() + VOICE_START_WAIT_MS
+        handler.removeCallbacks(mouthTick)
+        handler.post(mouthTick)
+
+        handler.removeCallbacks(releaseVoice)
+        handler.postDelayed(releaseVoice, VOICE_IDLE_RELEASE_MS)
+    }
+
+    // endregion
+
+    // region Voz (silencio)
 
     private fun toggleVoice() {
         val enabled = !VoicePreferences.isEnabled(this)
@@ -566,6 +690,10 @@ class NaoOverlayService : Service() {
         private const val MENU_LABEL_DP = 18
         private const val MENU_MARGIN_DP = 8
         private const val MENU_TIMEOUT_MS = 8000L
+
+        // Panel de texto para hablar con Nao
+        private const val PANEL_WIDTH_DP = 280
+        private const val PANEL_HEIGHT_GUESS_DP = 80
 
         private const val LOVED_DURATION_MS = 2000L
         private const val MOUTH_TOGGLE_MS = 140L
