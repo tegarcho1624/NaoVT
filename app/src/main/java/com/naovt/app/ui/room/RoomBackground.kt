@@ -67,7 +67,8 @@ fun RoomBackground(habitacion: Habitacion, modifier: Modifier = Modifier, paused
     ) {
         when (habitacion.tipo) {
             TipoHabitacion.IMAGEN -> RoomImage(habitacion) { size ->
-                if (size.isSpecified) archivo = "${size.width.roundToInt()}x${size.height.roundToInt()}"
+                // Size.Unspecified (NaN) = el painter no declara tamaño propio (por ejemplo, un vector).
+                if (size != Size.Unspecified) archivo = "${size.width.roundToInt()}x${size.height.roundToInt()}"
             }
             TipoHabitacion.VIDEO -> key(habitacion.id) {
                 VideoBackground(
