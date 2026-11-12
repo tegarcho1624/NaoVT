@@ -5,6 +5,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -41,7 +42,9 @@ private fun RoomImage(habitacion: Habitacion) {
             painter = painterResource(habitacion.recurso),
             contentDescription = null,
             modifier = Modifier.fillMaxSize(),
+            // Crop: llena la pantalla recortando lo que sobre, sin deformar; Center: recorta parejo por ambos lados.
             contentScale = ContentScale.Crop,
+            alignment = Alignment.Center,
         )
     } else {
         AsyncImage(
@@ -49,6 +52,7 @@ private fun RoomImage(habitacion: Habitacion) {
             contentDescription = null,
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop,
+            alignment = Alignment.Center,
             // Si el archivo ya no existe o no se puede leer, se ve la Sala de estar (nunca negro).
             error = painterResource(R.drawable.sala_de_estar),
         )

@@ -19,6 +19,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -59,6 +60,8 @@ fun VideoBackground(path: String, paused: Boolean, modifier: Modifier = Modifier
         ExoPlayer.Builder(context).build().apply {
             repeatMode = Player.REPEAT_MODE_ONE // en bucle
             volume = 0f // silenciado
+            // El propio decodificador llena la superficie recortando el sobrante (sin deformar, centrado).
+            videoScalingMode = C.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING
             addListener(object : Player.Listener {
                 override fun onPlayerError(error: PlaybackException) {
                     failed = true
@@ -95,7 +98,8 @@ fun VideoBackground(path: String, paused: Boolean, modifier: Modifier = Modifier
         factory = { ctx ->
             PlayerView(ctx).apply {
                 useController = false // sin controles
-                resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM // llena y recorta, como la imagen
+                // ZOOM: mantiene la proporción, llena la pantalla y recorta el sobrante, centrado (como la imagen).
+                resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
             }
         },
         update = { view -> view.player = player },
