@@ -14,8 +14,8 @@ android {
         applicationId = "com.naovt.app"
         minSdk = 26 // Llamatik pide Android 8.0 (API 26) o superior
         targetSdk = 34
-        versionCode = 19
-        versionName = "0.17.2-fondo-pantalla-completa"
+        versionCode = 20
+        versionName = "0.17.3-diagnostico-fondo"
     }
 
     buildTypes {
