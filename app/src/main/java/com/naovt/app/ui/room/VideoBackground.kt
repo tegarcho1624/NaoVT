@@ -1,6 +1,7 @@
 package com.naovt.app.ui.room
 
 import android.net.Uri
+import android.view.ViewGroup
 import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,7 +20,6 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -60,8 +60,6 @@ fun VideoBackground(path: String, paused: Boolean, modifier: Modifier = Modifier
         ExoPlayer.Builder(context).build().apply {
             repeatMode = Player.REPEAT_MODE_ONE // en bucle
             volume = 0f // silenciado
-            // El propio decodificador llena la superficie recortando el sobrante (sin deformar, centrado).
-            videoScalingMode = C.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING
             addListener(object : Player.Listener {
                 override fun onPlayerError(error: PlaybackException) {
                     failed = true
@@ -97,6 +95,11 @@ fun VideoBackground(path: String, paused: Boolean, modifier: Modifier = Modifier
         modifier = modifier.fillMaxSize(),
         factory = { ctx ->
             PlayerView(ctx).apply {
+                // Ocupa todo el espacio que le da el AndroidView (no se ajusta a su contenido).
+                layoutParams = ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                )
                 useController = false // sin controles
                 // ZOOM: mantiene la proporción, llena la pantalla y recorta el sobrante, centrado (como la imagen).
                 resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
