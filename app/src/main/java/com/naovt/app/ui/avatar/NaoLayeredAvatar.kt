@@ -31,7 +31,7 @@ private const val MOUTH_KISS = "boca_besando.png"
 private const val MOUTH_TALK_OPEN = "boca_abierta_feliz.png"
 
 /**
- * Nao hecha de las capas del [config] (ver [WardrobeSlot.z] para el orden de dibujo), apiladas
+ * Nao hecha de las capas del [config] (su [CharacterConfig.order] define el orden de dibujo), apiladas
  * dentro de un mismo lienzo de 1024x1536. El fondo se dibuja afuera, siempre debajo.
  *
  * La cara sigue las mismas prioridades que [NaoVTAvatar] (de mayor a menor):
@@ -74,7 +74,7 @@ fun NaoLayeredAvatar(
         val sampleSize = remember(heightPx) { WardrobeBitmaps.sampleSizeFor(heightPx) }
         val description = stringResource(R.string.nao_description)
 
-        for (slot in WardrobeSlot.drawOrder) {
+        for (slot in shown.order) {
             key(slot) {
                 AvatarLayer(
                     path = shown.assetPathFor(slot),

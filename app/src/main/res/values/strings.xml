@@ -244,4 +244,6 @@
     <string name="wardrobe_cat_left_arm">Brazo izquierdo</string>
     <string name="wardrobe_cat_right_arm">Brazo derecho</string>
     <string name="wardrobe_cat_body">Cuerpo</string>
+    <string name="wardrobe_layers">Capas</string>
+    <string name="wardrobe_drag_handle">Mantén presionado y arrastra para reordenar</string>
 </resources>

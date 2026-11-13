@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -69,6 +70,7 @@ import com.naovt.app.wardrobe.WardrobeSlot
 import com.naovt.app.wardrobe.WardrobeViewModel
 
 private val CELL_MIN_SIZE = 104.dp
+private val LAYER_PANEL_WIDTH = 190.dp
 
 /**
  * El Armario: arriba (o a la izquierda en pantallas anchas) la vista previa de Nao, y debajo una
@@ -114,15 +116,15 @@ fun WardrobeScreen(
                 val wide = maxWidth > maxHeight
                 if (wide) {
                     Row(modifier = Modifier.fillMaxSize()) {
-                        Preview(viewModel, Modifier.weight(0.4f).fillMaxHeight())
-                        Column(modifier = Modifier.weight(0.6f).fillMaxHeight()) {
+                        PreviewWithLayers(viewModel, Modifier.weight(0.5f).fillMaxHeight())
+                        Column(modifier = Modifier.weight(0.5f).fillMaxHeight()) {
                             CategoryTabs(selectedTab) { selectedTab = it }
                             AssetGrid(viewModel, slot, Modifier.weight(1f))
                         }
                     }
                 } else {
                     Column(modifier = Modifier.fillMaxSize()) {
-                        Preview(viewModel, Modifier.weight(0.45f).fillMaxWidth())
+                        PreviewWithLayers(viewModel, Modifier.weight(0.45f).fillMaxWidth())
                         CategoryTabs(selectedTab) { selectedTab = it }
                         AssetGrid(viewModel, slot, Modifier.weight(0.55f))
                     }
@@ -132,12 +134,28 @@ fun WardrobeScreen(
     }
 }
 
+/** La vista previa de Nao con el Gestor de Capas en el costado derecho. */
+@Composable
+private fun PreviewWithLayers(viewModel: WardrobeViewModel, modifier: Modifier = Modifier) {
+    Row(modifier = modifier) {
+        Preview(viewModel, Modifier.weight(1f).fillMaxHeight())
+        LayerPanel(
+            config = viewModel.config,
+            onReorder = viewModel::reorder,
+            modifier = Modifier
+                .width(LAYER_PANEL_WIDTH)
+                .fillMaxHeight()
+                .padding(end = 16.dp, top = 4.dp, bottom = 4.dp),
+        )
+    }
+}
+
 /** Nao en tiempo real con lo que lleva puesto; se actualiza en cuanto se equipa algo. */
 @Composable
 private fun Preview(viewModel: WardrobeViewModel, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
-            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .padding(start = 16.dp, end = 8.dp, top = 4.dp, bottom = 4.dp)
             .clip(RoundedCornerShape(20.dp))
             .background(MaterialTheme.colorScheme.surface),
         contentAlignment = Alignment.BottomCenter,

@@ -1,4 +1,4 @@
-# NaoVT — Fase 18 (Armario y avatar modular)
+# NaoVT — Fase 19 (Gestor de Capas)
 
 Mascota virtual Naomi en Android (Jetpack Compose, tema oscuro).
 
@@ -23,6 +23,7 @@ Mascota virtual Naomi en Android (Jetpack Compose, tema oscuro).
   - `wardrobe/WardrobeSlot.kt`: cada ranura (ojos, boca, camisa...) con su carpeta y su **orden de dibujo (`z`)**; el orden de las entradas es el de las pestañas.
   - `wardrobe/CharacterConfig.kt`: qué archivo lleva Nao en cada ranura (`CharacterConfig.Default` = vestido maid). `wardrobe/WardrobeViewModel.kt` lo comparte con la pantalla principal y lo guarda en SharedPreferences.
   - `wardrobe/WardrobeCatalog.kt` (lee las carpetas) y `wardrobe/WardrobeBitmaps.kt` (carga de capas y miniaturas con caché).
+  - Gestor de Capas (fase 19): `ui/wardrobe/LayerPanel.kt` (panel lateral con arrastrar y soltar). El orden manual vive en `CharacterConfig.order` (se guarda con `WardrobeViewModel.reorder`); `WardrobeSlot.z` solo es el orden inicial.
   - `ui/avatar/NaoLayeredAvatar.kt`: dibuja las capas (pantalla principal y vista previa); `ui/wardrobe/WardrobeScreen.kt`: pantalla del Armario.
   - Pendiente: el Modo Flotante, las alertas y `NaoHeadBadge` siguen con el arte anterior de `res/drawable/` (no se borró).
 - Assets anteriores en `app/src/main/res/drawable/`

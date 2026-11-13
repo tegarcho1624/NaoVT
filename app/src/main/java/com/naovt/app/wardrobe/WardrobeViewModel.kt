@@ -30,6 +30,17 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
         prefs.edit().putString(slot.name, fileName.orEmpty()).apply()
     }
 
+    /**
+     * Gestor de Capas: guarda el nuevo orden de dibujo de las ranuras equipadas
+     * ([visibleBottomToTop]: de la capa de más atrás a la de más adelante).
+     */
+    fun reorder(visibleBottomToTop: List<WardrobeSlot>) {
+        val updated = config.withVisibleOrder(visibleBottomToTop)
+        if (updated == config) return
+        config = updated
+        prefs.edit().putString(KEY_ORDER, updated.order.joinToString(",") { it.name }).apply()
+    }
+
     private fun readSaved(): CharacterConfig {
         var result = CharacterConfig.Default
         for (slot in WardrobeSlot.entries) {
@@ -40,10 +51,14 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
                 else -> result // archivo que ya no existe: se queda el del atuendo inicial
             }
         }
-        return result
+        val savedOrder = prefs.getString(KEY_ORDER, null)
+            ?.split(',')
+            ?.mapNotNull { name -> WardrobeSlot.entries.firstOrNull { it.name == name } }
+        return if (savedOrder.isNullOrEmpty()) result else result.withOrder(savedOrder)
     }
 
     private companion object {
         const val PREFS_NAME = "naovt_character"
+        const val KEY_ORDER = "layer_order"
     }
 }

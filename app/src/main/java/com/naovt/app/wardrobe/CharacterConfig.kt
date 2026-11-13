@@ -14,12 +14,19 @@ data class WardrobeItem(
 }
 
 /**
- * Qué asset lleva puesto Nao en cada ranura. Es inmutable: cada cambio crea una copia nueva.
- * Un valor `null` significa "ranura vacía" (sin ropa interior, sin gorro...).
+ * Qué asset lleva puesto Nao en cada ranura y en qué orden se dibujan. Es inmutable: cada cambio
+ * crea una copia nueva. Un valor `null` significa "ranura vacía" (sin ropa interior, sin gorro...).
+ *
+ * [order] es el orden de dibujo de TODAS las ranuras, de atrás hacia adelante (el último queda encima).
+ * Una ranura vacía conserva su lugar: al equiparle algo, aparece justo donde estaba. Por defecto es el
+ * orden de [WardrobeSlot.z]; el Gestor de Capas del Armario lo cambia a mano.
  *
  * Esta clase guarda solo nombres de archivo; las imágenes se cargan aparte (ver [WardrobeBitmaps]).
  */
-data class CharacterConfig(private val selection: Map<WardrobeSlot, String?> = emptyMap()) {
+data class CharacterConfig(
+    private val selection: Map<WardrobeSlot, String?> = emptyMap(),
+    val order: List<WardrobeSlot> = WardrobeSlot.drawOrder,
+) {
 
     /** Archivo equipado en [slot], o null si está vacía. */
     fun fileFor(slot: WardrobeSlot): String? = selection[slot]
@@ -30,12 +37,45 @@ data class CharacterConfig(private val selection: Map<WardrobeSlot, String?> = e
 
     /** Copia con [fileName] equipado en [slot] (null la deja vacía). */
     fun with(slot: WardrobeSlot, fileName: String?): CharacterConfig =
-        CharacterConfig(selection + (slot to fileName))
+        CharacterConfig(selection + (slot to fileName), order)
+
+    /** Ranuras con algo equipado, de atrás hacia adelante (el orden real de dibujo). */
+    fun visibleSlots(): List<WardrobeSlot> = order.filter { selection[it] != null }
 
     /** Rutas de las capas equipadas, de atrás hacia adelante. */
-    fun layerPaths(): List<String> = WardrobeSlot.drawOrder.mapNotNull { assetPathFor(it) }
+    fun layerPaths(): List<String> = order.mapNotNull { assetPathFor(it) }
+
+    /** Copia con otro orden completo de dibujo (se completa y limpia con [normalizeOrder]). */
+    fun withOrder(newOrder: List<WardrobeSlot>): CharacterConfig =
+        CharacterConfig(selection, normalizeOrder(newOrder))
+
+    /**
+     * Copia donde las ranuras equipadas quedan en el orden [visibleBottomToTop] (de atrás hacia adelante).
+     * Las ranuras vacías no se mueven de su lugar. Si la lista no contiene exactamente las ranuras
+     * equipadas, no cambia nada.
+     */
+    fun withVisibleOrder(visibleBottomToTop: List<WardrobeSlot>): CharacterConfig {
+        val visible = visibleSlots().toSet()
+        if (visibleBottomToTop.size != visible.size || visibleBottomToTop.toSet() != visible) return this
+        val next = visibleBottomToTop.iterator()
+        return CharacterConfig(selection, order.map { if (it in visible) next.next() else it })
+    }
 
     companion object {
+        /**
+         * Deja [saved] como una lista válida de todas las ranuras: quita repetidas, y las que falten
+         * (por ejemplo una ranura nueva en una versión futura) se insertan según su [WardrobeSlot.z].
+         */
+        fun normalizeOrder(saved: List<WardrobeSlot>): List<WardrobeSlot> {
+            val result = saved.distinct().toMutableList()
+            for (slot in WardrobeSlot.drawOrder) {
+                if (slot in result) continue
+                val index = result.indexOfFirst { it.z > slot.z }
+                if (index < 0) result.add(slot) else result.add(index, slot)
+            }
+            return result
+        }
+
         /** Primer atuendo de Nao: vestido de maid. Orden de capas de la fase 18. */
         val Default = CharacterConfig(
             mapOf(
