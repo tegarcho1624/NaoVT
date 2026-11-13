@@ -24,6 +24,7 @@ import com.naovt.app.ui.rooms.RoomsScreen
 import com.naovt.app.ui.pomodoro.PomodoroScreen
 import com.naovt.app.ui.voice.VoiceSettingsScreen
 import com.naovt.app.ui.vault.VaultScreen
+import com.naovt.app.ui.wardrobe.WardrobeScreen
 
 /**
  * Raíz de la app. El Baúl y Mis Alertas se dibujan encima de la pantalla principal, que se queda
@@ -46,9 +47,10 @@ fun NaoApp(
     var voiceSettingsOpen by rememberSaveable { mutableStateOf(false) }
     var chatOpen by rememberSaveable { mutableStateOf(false) }
     var roomsOpen by rememberSaveable { mutableStateOf(false) }
+    var wardrobeOpen by rememberSaveable { mutableStateOf(false) }
     // Si alguna pantalla tapa el fondo, el video se pausa (ahorra batería).
     val screenCoversBackground = vaultOpen || alertsOpen || phrasesOpen || pomodoroOpen ||
-        voiceSettingsOpen || chatOpen || roomsOpen
+        voiceSettingsOpen || chatOpen || roomsOpen || wardrobeOpen
     val overlay = rememberOverlayController()
 
     LaunchedEffect(destination) {
@@ -70,6 +72,7 @@ fun NaoApp(
             onOpenVoiceSettings = { voiceSettingsOpen = true },
             onOpenChat = { chatOpen = true },
             onOpenRooms = { roomsOpen = true },
+            onOpenWardrobe = { wardrobeOpen = true },
             backgroundPaused = screenCoversBackground,
             isOverlayRunning = NaoOverlayService.isRunning,
             onToggleOverlay = { if (NaoOverlayService.isRunning) overlay.stop() else overlay.start() },
@@ -131,6 +134,14 @@ fun NaoApp(
             exit = fadeOut(),
         ) {
             RoomsScreen(onClose = { roomsOpen = false })
+        }
+
+        AnimatedVisibility(
+            visible = wardrobeOpen,
+            enter = fadeIn() + slideInVertically { it / 12 },
+            exit = fadeOut(),
+        ) {
+            WardrobeScreen(onClose = { wardrobeOpen = false })
         }
     }
 }

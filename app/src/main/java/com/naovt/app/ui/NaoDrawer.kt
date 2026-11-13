@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
@@ -54,6 +55,7 @@ fun NaoDrawerContent(
     onVoiceSettings: () -> Unit,
     onChangeRoom: () -> Unit,
     onVault: () -> Unit,
+    onWardrobe: () -> Unit,
     onToggleOverlay: () -> Unit,
     afterClick: () -> Unit,
 ) {
@@ -89,6 +91,7 @@ fun NaoDrawerContent(
             DrawerItem(Icons.Default.Star, stringResource(R.string.pomodoro_button), onPomodoro, afterClick)
             DrawerItem(Icons.Default.Settings, stringResource(R.string.voice_settings_button), onVoiceSettings, afterClick)
             DrawerItem(Icons.Default.Home, stringResource(R.string.change_room), onChangeRoom, afterClick)
+            DrawerItem(Icons.Default.Person, stringResource(R.string.wardrobe_button), onWardrobe, afterClick)
             DrawerItem(Icons.Default.Favorite, stringResource(R.string.vault_button), onVault, afterClick)
             DrawerItem(
                 icon = if (isOverlayRunning) Icons.Default.Close else Icons.Default.Face,

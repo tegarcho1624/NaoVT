@@ -1,4 +1,4 @@
-# NaoVT — Fase 17 (Habitaciones personalizadas)
+# NaoVT — Fase 18 (Armario y avatar modular)
 
 Mascota virtual Naomi en Android (Jetpack Compose, tema oscuro).
 
@@ -19,6 +19,12 @@ Mascota virtual Naomi en Android (Jetpack Compose, tema oscuro).
 - Mini chat de voz: `llm/SpokenAnswerer.kt` (respuesta solo hablada), `ui/MiniChatPanel.kt` (toque largo sobre Nao) y `overlay/MiniChatPanelView.kt` (botón "Hablar" del menú radial)
 - Menú lateral (reemplaza a los botones flotantes): `ui/NaoDrawer.kt` y `ui/NaoScreen.kt`
 - Habitaciones: `data/RoomRepository.kt` (JSON en SharedPreferences + copia en filesDir/habitaciones/), `ui/rooms/` (pantalla Gestionar Habitaciones) y `ui/room/` (fondo imagen o video con ExoPlayer)
-- Assets en `app/src/main/res/drawable/`
+- Armario y avatar modular (fase 18): el arte nuevo vive en `app/src/main/assets/naomi/<Carpeta>/` (las carpetas del ZIP de arte; agregar un PNG a una carpeta basta para que aparezca en el Armario).
+  - `wardrobe/WardrobeSlot.kt`: cada ranura (ojos, boca, camisa...) con su carpeta y su **orden de dibujo (`z`)**; el orden de las entradas es el de las pestañas.
+  - `wardrobe/CharacterConfig.kt`: qué archivo lleva Nao en cada ranura (`CharacterConfig.Default` = vestido maid). `wardrobe/WardrobeViewModel.kt` lo comparte con la pantalla principal y lo guarda en SharedPreferences.
+  - `wardrobe/WardrobeCatalog.kt` (lee las carpetas) y `wardrobe/WardrobeBitmaps.kt` (carga de capas y miniaturas con caché).
+  - `ui/avatar/NaoLayeredAvatar.kt`: dibuja las capas (pantalla principal y vista previa); `ui/wardrobe/WardrobeScreen.kt`: pantalla del Armario.
+  - Pendiente: el Modo Flotante, las alertas y `NaoHeadBadge` siguen con el arte anterior de `res/drawable/` (no se borró).
+- Assets anteriores en `app/src/main/res/drawable/`
 
 APK: sube a GitHub y revisa Actions → *Build APK* → artefacto `NaoVT-debug-apk`.

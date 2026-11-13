@@ -23,7 +23,6 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
-import androidx.media3.common.VideoSize
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
@@ -40,12 +39,7 @@ import java.io.File
  */
 @OptIn(UnstableApi::class)
 @Composable
-fun VideoBackground(
-    path: String,
-    paused: Boolean,
-    modifier: Modifier = Modifier,
-    onVideoSize: (width: Int, height: Int) -> Unit = { _, _ -> },
-) {
+fun VideoBackground(path: String, paused: Boolean, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     var failed by remember(path) { mutableStateOf(false) }
 
@@ -69,10 +63,6 @@ fun VideoBackground(
             addListener(object : Player.Listener {
                 override fun onPlayerError(error: PlaybackException) {
                     failed = true
-                }
-
-                override fun onVideoSizeChanged(videoSize: VideoSize) {
-                    onVideoSize(videoSize.width, videoSize.height)
                 }
             })
             setMediaItem(MediaItem.fromUri(Uri.fromFile(File(path))))

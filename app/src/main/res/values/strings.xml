@@ -223,4 +223,25 @@
     <string name="rooms_copying">Copiando el archivo…</string>
     <string name="rooms_copy_failed">No se pudo copiar el archivo. ¿Hay espacio libre suficiente?</string>
     <string name="rooms_video_failed">No se pudo reproducir el video de esta habitación.</string>
+
+    <!-- Armario -->
+    <string name="wardrobe_button">Armario</string>
+    <string name="wardrobe_title">Armario</string>
+    <string name="wardrobe_close">Cerrar el Armario</string>
+    <string name="wardrobe_none">Ninguno</string>
+    <string name="wardrobe_coming_soon">Próximamente</string>
+    <string name="wardrobe_cat_eyes">Ojos</string>
+    <string name="wardrobe_cat_mouths">Bocas</string>
+    <string name="wardrobe_cat_front_hair">Cabello frontal</string>
+    <string name="wardrobe_cat_back_hair">Cabello trasero</string>
+    <string name="wardrobe_cat_heads">Cabezas</string>
+    <string name="wardrobe_cat_hats">Gorros</string>
+    <string name="wardrobe_cat_shirts">Camisas</string>
+    <string name="wardrobe_cat_pants">Pantalones</string>
+    <string name="wardrobe_cat_panties">Bragas</string>
+    <string name="wardrobe_cat_bras">Sostenes</string>
+    <string name="wardrobe_cat_chest">Pecho</string>
+    <string name="wardrobe_cat_left_arm">Brazo izquierdo</string>
+    <string name="wardrobe_cat_right_arm">Brazo derecho</string>
+    <string name="wardrobe_cat_body">Cuerpo</string>
 </resources>

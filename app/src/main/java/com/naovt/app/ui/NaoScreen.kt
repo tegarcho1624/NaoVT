@@ -68,7 +68,8 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
-import com.naovt.app.ui.avatar.NaoVTAvatar
+import com.naovt.app.ui.avatar.NaoLayeredAvatar
+import com.naovt.app.wardrobe.WardrobeViewModel
 import com.naovt.app.ui.avatar.rememberBlink
 import com.naovt.app.ui.avatar.rememberTalkingMouth
 import com.naovt.app.ui.room.RoomBackground
@@ -93,6 +94,7 @@ fun NaoScreen(
     onOpenVoiceSettings: () -> Unit = {},
     onOpenChat: () -> Unit = {},
     onOpenRooms: () -> Unit = {},
+    onOpenWardrobe: () -> Unit = {},
     backgroundPaused: Boolean = false,
     isOverlayRunning: Boolean = false,
     onToggleOverlay: () -> Unit = {},
@@ -102,6 +104,8 @@ fun NaoScreen(
     // Habitación activa (predeterminada o propia, imagen o video).
     val roomsViewModel: RoomsViewModel = viewModel()
     val activeRoom = roomsViewModel.activa
+    // Atuendo de Nao (compartido con el Armario: no se pierde al cambiar de pantalla).
+    val wardrobeViewModel: WardrobeViewModel = viewModel()
     var tapCount by remember { mutableIntStateOf(0) }
     var expression by remember { mutableStateOf(NaoExpression.Neutral) }
     var lastPhrase by remember { mutableStateOf<String?>(null) }
@@ -181,6 +185,7 @@ fun NaoScreen(
                 onVoiceSettings = onOpenVoiceSettings,
                 onChangeRoom = onOpenRooms,
                 onVault = onOpenVault,
+                onWardrobe = onOpenWardrobe,
                 onToggleOverlay = onToggleOverlay,
                 afterClick = { scope.launch { drawerState.close() } }, // se cierra solo al elegir
             )
@@ -189,7 +194,8 @@ fun NaoScreen(
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         RoomBackground(habitacion = activeRoom, paused = backgroundPaused)
 
-        NaoVTAvatar(
+        NaoLayeredAvatar(
+            config = wardrobeViewModel.config,
             expression = shownExpression,
             mouthOverride = talkingMouth,
             isSpeaking = voice.isSpeaking,
