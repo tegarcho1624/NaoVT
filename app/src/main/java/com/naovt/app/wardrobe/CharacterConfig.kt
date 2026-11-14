@@ -43,6 +43,9 @@ data class CharacterConfig(
     /** Archivo equipado en [slot], o null si está vacía. */
     fun fileFor(slot: WardrobeSlot): String? = selection[slot]
 
+    /** Copia del mapa ranura -> archivo equipado (null = vacía); es lo que guarda un [Outfit]. */
+    fun selections(): Map<WardrobeSlot, String?> = selection
+
     /** Ruta del asset equipado en [slot], o null si está vacía. */
     fun assetPathFor(slot: WardrobeSlot): String? = selection[slot]?.let { id ->
         if (id.startsWith(CUSTOM_ID_PREFIX)) {

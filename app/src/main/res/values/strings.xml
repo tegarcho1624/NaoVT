@@ -252,6 +252,16 @@
     <string name="wardrobe_import_invalid">Esa imagen no es un PNG o JPEG válido.</string>
     <string name="wardrobe_import_failed">No se pudo importar la imagen. Inténtalo de nuevo.</string>
     <string name="wardrobe_import_stretched">Imagen importada, pero no tiene la proporción 2:3 de las capas de Nao (1024×1536): se verá estirada.</string>
+    <string name="wardrobe_outfits_title">Mis Outfits</string>
+    <string name="wardrobe_save_outfit">Guardar Outfit</string>
+    <string name="wardrobe_save">Guardar</string>
+    <string name="wardrobe_outfits_empty">Aún no tienes outfits guardados.</string>
+    <string name="wardrobe_outfit_default_name">Outfit %1$d</string>
+    <string name="wardrobe_outfit_name_title">Ponle un nombre a este conjunto</string>
+    <string name="wardrobe_outfit_name_hint">Nombre del outfit</string>
+    <string name="wardrobe_outfit_delete_title">¿Eliminar este outfit?</string>
+    <string name="wardrobe_outfit_delete_message">Se borrará «%1$s». Los assets que usa no se eliminan.</string>
+    <string name="wardrobe_outfit_delete_confirm">Eliminar outfit</string>
     <string name="wardrobe_layers">Capas</string>
     <string name="wardrobe_drag_handle">Mantén presionado y arrastra para reordenar</string>
 </resources>

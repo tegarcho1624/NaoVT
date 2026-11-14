@@ -158,7 +158,10 @@ fun WardrobeScreen(
                 val wide = maxWidth > maxHeight
                 if (wide) {
                     Row(modifier = Modifier.fillMaxSize()) {
-                        PreviewWithLayers(viewModel, Modifier.weight(0.5f).fillMaxHeight())
+                        Column(modifier = Modifier.weight(0.5f).fillMaxHeight()) {
+                            PreviewWithLayers(viewModel, Modifier.weight(1f).fillMaxWidth())
+                            OutfitsSection(viewModel)
+                        }
                         Column(modifier = Modifier.weight(0.5f).fillMaxHeight()) {
                             CategoryTabs(selectedTab) { selectedTab = it }
                             AssetGrid(viewModel, slot, onImport, { deleting = it }, Modifier.weight(1f))
@@ -167,6 +170,7 @@ fun WardrobeScreen(
                 } else {
                     Column(modifier = Modifier.fillMaxSize()) {
                         PreviewWithLayers(viewModel, Modifier.weight(0.45f).fillMaxWidth())
+                        OutfitsSection(viewModel)
                         CategoryTabs(selectedTab) { selectedTab = it }
                         AssetGrid(viewModel, slot, onImport, { deleting = it }, Modifier.weight(0.55f))
                     }

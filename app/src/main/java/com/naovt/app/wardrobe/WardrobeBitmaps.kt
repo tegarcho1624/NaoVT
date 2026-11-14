@@ -37,6 +37,7 @@ object WardrobeBitmaps {
     private const val THUMB_MAX_SIDE = 320
     private const val THUMB_PADDING = 12
     private const val ALPHA_THRESHOLD = 12
+    private const val PREVIEW_SAMPLE = 4
 
     private val maxMemory = Runtime.getRuntime().maxMemory()
 
@@ -45,6 +46,10 @@ object WardrobeBitmaps {
     }
 
     private val thumbCache = object : LruCache<String, ImageBitmap>((maxMemory / 16).toInt()) {
+        override fun sizeOf(key: String, value: ImageBitmap): Int = value.asAndroidBitmap().allocationByteCount
+    }
+
+    private val previewCache = object : LruCache<String, ImageBitmap>((maxMemory / 32).toInt()) {
         override fun sizeOf(key: String, value: ImageBitmap): Int = value.asAndroidBitmap().allocationByteCount
     }
 
@@ -98,6 +103,39 @@ object WardrobeBitmaps {
             if (key.startsWith("$path@")) layerCache.remove(key)
         }
         thumbCache.remove(path)
+        previewCache.evictAll() // las vistas previas de outfits pudieron incluir esa imagen
+    }
+
+    private fun previewKey(layerPaths: List<String>) = layerPaths.joinToString("|")
+
+    fun cachedPreview(layerPaths: List<String>): ImageBitmap? = previewCache.get(previewKey(layerPaths))
+
+    /**
+     * Vista previa reducida de un atuendo completo: las capas [layerPaths] (de atrás hacia adelante)
+     * apiladas a 1/4 de resolución (256x384). Las capas que no se puedan leer se omiten.
+     */
+    suspend fun outfitPreview(context: Context, layerPaths: List<String>): ImageBitmap? {
+        val key = previewKey(layerPaths)
+        previewCache.get(key)?.let { return it }
+        return thumbLock.withLock {
+            val ready = previewCache.get(key)
+            if (ready != null) {
+                ready
+            } else {
+                withContext(Dispatchers.IO) {
+                    val width = LAYER_WIDTH / PREVIEW_SAMPLE
+                    val height = LAYER_HEIGHT / PREVIEW_SAMPLE
+                    val result = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                    val canvas = Canvas(result)
+                    for (path in layerPaths) {
+                        val layer = decode(context, path, PREVIEW_SAMPLE) ?: continue
+                        canvas.drawBitmap(layer, Rect(0, 0, layer.width, layer.height), Rect(0, 0, width, height), null)
+                        layer.recycle()
+                    }
+                    result.asImageBitmap().also { previewCache.put(key, it) }
+                }
+            }
+        }
     }
 
     /** Los personalizados viven en filesDir; los nativos, en assets/. */

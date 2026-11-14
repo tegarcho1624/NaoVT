@@ -12,6 +12,7 @@ import com.naovt.app.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.UUID
 
 /**
  * Guarda qué lleva puesto Nao ([config]) y administra los assets de cada categoría: los nativos de la
@@ -26,6 +27,7 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
 
     private val prefs = application.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     private val store = CustomAssetStore(application)
+    private val outfitStore = OutfitStore(application)
 
     /** Assets nativos (los de `assets/naomi/`). Nunca cambian ni se pueden borrar. */
     private val nativeCatalog: WardrobeCatalog = WardrobeCatalog.load(application)
@@ -34,6 +36,10 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
     private var savedOrders by mutableStateOf(loadOrders())
 
     var config by mutableStateOf(readSaved())
+        private set
+
+    /** Outfits guardados, en el orden en que se crearon. */
+    var outfits by mutableStateOf(outfitStore.load())
         private set
 
     /** Aviso para mostrar al usuario (un Toast); la pantalla lo muestra y llama a [clearMessage]. */
@@ -79,6 +85,49 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
         if (updated == config) return
         config = updated
         prefs.edit().putString(KEY_ORDER, updated.order.joinToString(",") { it.name }).apply()
+    }
+
+    /** Guarda el atuendo actual (assets de cada categoría y orden de capas) con el nombre [name]. */
+    fun saveOutfit(name: String) {
+        val clean = name.trim()
+        if (clean.isEmpty()) return
+        val outfit = Outfit(UUID.randomUUID().toString(), clean, config.selections(), config.order)
+        outfits = outfits + outfit
+        outfitStore.save(outfits)
+    }
+
+    fun deleteOutfit(outfit: Outfit) {
+        outfits = outfits.filter { it.id != outfit.id }
+        outfitStore.save(outfits)
+    }
+
+    /**
+     * Configuración que resulta de [outfit] con lo que existe hoy. Si un asset del outfit ya no está
+     * (por ejemplo, un personalizado eliminado después) se ignora: la ranura queda vacía, o con el
+     * asset inicial si no puede quedar vacía. Nunca falla.
+     */
+    fun resolveOutfit(outfit: Outfit): CharacterConfig {
+        var result = CharacterConfig.Default
+        for (slot in WardrobeSlot.entries) {
+            val saved = outfit.selection[slot]
+            val file = when {
+                saved != null && contains(slot, saved) -> saved
+                slot.optional -> null
+                else -> CharacterConfig.Default.fileFor(slot)
+            }
+            result = result.with(slot, file)
+        }
+        return result.withOrder(outfit.order)
+    }
+
+    /** Viste a Nao con [outfit] y deja ese atuendo guardado como el actual. */
+    fun applyOutfit(outfit: Outfit) {
+        val resolved = resolveOutfit(outfit)
+        config = resolved
+        prefs.edit().apply {
+            for (slot in WardrobeSlot.entries) putString(slot.name, resolved.fileFor(slot).orEmpty())
+            putString(KEY_ORDER, resolved.order.joinToString(",") { it.name })
+        }.apply()
     }
 
     /**
