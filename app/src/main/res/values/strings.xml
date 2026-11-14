@@ -244,6 +244,14 @@
     <string name="wardrobe_cat_left_arm">Brazo izquierdo</string>
     <string name="wardrobe_cat_right_arm">Brazo derecho</string>
     <string name="wardrobe_cat_body">Cuerpo</string>
+    <string name="wardrobe_import">Importar</string>
+    <string name="wardrobe_cancel">Cancelar</string>
+    <string name="wardrobe_delete_title">¿Eliminar este asset?</string>
+    <string name="wardrobe_delete_message">Se borrará «%1$s» de tu Armario. Esta acción no se puede deshacer.</string>
+    <string name="wardrobe_delete_confirm">Eliminar asset</string>
+    <string name="wardrobe_import_invalid">Esa imagen no es un PNG o JPEG válido.</string>
+    <string name="wardrobe_import_failed">No se pudo importar la imagen. Inténtalo de nuevo.</string>
+    <string name="wardrobe_import_stretched">Imagen importada, pero no tiene la proporción 2:3 de las capas de Nao (1024×1536): se verá estirada.</string>
     <string name="wardrobe_layers">Capas</string>
     <string name="wardrobe_drag_handle">Mantén presionado y arrastra para reordenar</string>
 </resources>

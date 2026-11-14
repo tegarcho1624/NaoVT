@@ -1,16 +1,28 @@
 package com.naovt.app.wardrobe
 
-/** Un asset equipable: un PNG de una carpeta de `assets/naomi/`. */
+/**
+ * Un asset equipable: nativo (un PNG de `assets/naomi/`) o personalizado (importado por el usuario).
+ */
 data class WardrobeItem(
     val slot: WardrobeSlot,
-    /** Nombre del archivo, por ejemplo `vestido_maid.png`. Es lo que se guarda en la configuración. */
+    /**
+     * Identificador del asset, y lo que se guarda en la configuración. Nativo: el nombre del archivo
+     * (`vestido_maid.png`). Personalizado: `custom/` + nombre del archivo (`custom/mi_vestido.png`).
+     */
     val fileName: String,
-    /** Ruta dentro de `assets/`, por ejemplo `naomi/Camisas/vestido_maid.png`. */
+    /**
+     * Ruta para cargar la imagen. Nativo: dentro de `assets/` (`naomi/Camisas/vestido_maid.png`).
+     * Personalizado: dentro de `filesDir` (`assets_personalizados/Camisas/mi_vestido.png`).
+     */
     val assetPath: String,
 ) {
+    /** Los personalizados se pueden eliminar; los nativos nunca. */
+    val isCustom: Boolean
+        get() = fileName.startsWith(CUSTOM_ID_PREFIX)
+
     /** Nombre legible para el Armario: "vestido maid". */
     val label: String
-        get() = fileName.substringBeforeLast('.').replace('_', ' ')
+        get() = fileName.substringAfterLast('/').substringBeforeLast('.').replace('_', ' ')
 }
 
 /**
@@ -32,8 +44,13 @@ data class CharacterConfig(
     fun fileFor(slot: WardrobeSlot): String? = selection[slot]
 
     /** Ruta del asset equipado en [slot], o null si está vacía. */
-    fun assetPathFor(slot: WardrobeSlot): String? =
-        selection[slot]?.let { "$WARDROBE_ASSETS_ROOT/${slot.folder}/$it" }
+    fun assetPathFor(slot: WardrobeSlot): String? = selection[slot]?.let { id ->
+        if (id.startsWith(CUSTOM_ID_PREFIX)) {
+            "$CUSTOM_ASSETS_DIR/${slot.customDirName}/${id.removePrefix(CUSTOM_ID_PREFIX)}"
+        } else {
+            "$WARDROBE_ASSETS_ROOT/${slot.folder}/$id"
+        }
+    }
 
     /** Copia con [fileName] equipado en [slot] (null la deja vacía). */
     fun with(slot: WardrobeSlot, fileName: String?): CharacterConfig =

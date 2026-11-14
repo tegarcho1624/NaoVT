@@ -14,8 +14,8 @@ android {
         applicationId = "com.naovt.app"
         minSdk = 26 // Llamatik pide Android 8.0 (API 26) o superior
         targetSdk = 34
-        versionCode = 21
-        versionName = "0.18.1-gestor-capas"
+        versionCode = 22
+        versionName = "0.19.0-assets-propios"
     }
 
     buildTypes {

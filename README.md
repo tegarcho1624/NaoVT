@@ -1,4 +1,4 @@
-# NaoVT — Fase 19 (Gestor de Capas)
+# NaoVT — Fase 20 (Assets propios en el Armario)
 
 Mascota virtual Naomi en Android (Jetpack Compose, tema oscuro).
 
@@ -24,6 +24,7 @@ Mascota virtual Naomi en Android (Jetpack Compose, tema oscuro).
   - `wardrobe/CharacterConfig.kt`: qué archivo lleva Nao en cada ranura (`CharacterConfig.Default` = vestido maid). `wardrobe/WardrobeViewModel.kt` lo comparte con la pantalla principal y lo guarda en SharedPreferences.
   - `wardrobe/WardrobeCatalog.kt` (lee las carpetas) y `wardrobe/WardrobeBitmaps.kt` (carga de capas y miniaturas con caché).
   - Gestor de Capas (fase 19): `ui/wardrobe/LayerPanel.kt` (panel lateral con arrastrar y soltar). El orden manual vive en `CharacterConfig.order` (se guarda con `WardrobeViewModel.reorder`); `WardrobeSlot.z` solo es el orden inicial.
+  - Assets propios (fase 20): el "+" de cada categoría importa un PNG/JPEG con PickVisualMedia a `filesDir/assets_personalizados/<categoría>/` (`wardrobe/CustomAssetStore.kt`; registro y orden en JSON en SharedPreferences `naovt_wardrobe_items`). Los importados se identifican como `custom/<archivo>`; los nativos nunca se pueden borrar. En la cuadrícula: tocar = equipar, mantener y arrastrar = reordenar (solo orden visual), mantener sin arrastrar en un importado = eliminar.
   - `ui/avatar/NaoLayeredAvatar.kt`: dibuja las capas (pantalla principal y vista previa); `ui/wardrobe/WardrobeScreen.kt`: pantalla del Armario.
   - Pendiente: el Modo Flotante, las alertas y `NaoHeadBadge` siguen con el arte anterior de `res/drawable/` (no se borró).
 - Assets anteriores en `app/src/main/res/drawable/`

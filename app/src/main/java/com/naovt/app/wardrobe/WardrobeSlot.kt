@@ -42,6 +42,13 @@ enum class WardrobeSlot(
     RightArm("Brazos", R.string.wardrobe_cat_right_arm, z = 8, nameFilter = "derecho"),
     Body("Base", R.string.wardrobe_cat_body, z = 2, optional = false, inTabs = false);
 
+    /**
+     * Carpeta (dentro de `filesDir/assets_personalizados/`) donde van los assets importados de esta
+     * ranura. Los brazos comparten carpeta de arte, pero cada lado tiene la suya.
+     */
+    val customDirName: String
+        get() = if (nameFilter == null) folder else "${folder}_$nameFilter"
+
     companion object {
         /** Todas las ranuras de atrás hacia adelante (el orden real de dibujo). */
         val drawOrder: List<WardrobeSlot> = entries.sortedBy { it.z }
@@ -51,8 +58,14 @@ enum class WardrobeSlot(
     }
 }
 
-/** Carpeta raíz de las imágenes dentro de `assets/`. */
+/** Carpeta raíz de las imágenes nativas dentro de `assets/`. */
 const val WARDROBE_ASSETS_ROOT = "naomi"
+
+/** Carpeta (dentro de `filesDir`) de los assets importados por el usuario. */
+const val CUSTOM_ASSETS_DIR = "assets_personalizados"
+
+/** Prefijo del identificador de un asset importado (los nativos son solo el nombre del archivo). */
+const val CUSTOM_ID_PREFIX = "custom/"
 
 // La cabeza base sirve de fondo en las miniaturas de ojos, bocas, cabello frontal y gorros.
 private const val HEAD = "$WARDROBE_ASSETS_ROOT/Cabezas/cabeza_base.png"

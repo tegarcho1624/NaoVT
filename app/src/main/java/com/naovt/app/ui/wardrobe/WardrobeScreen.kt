@@ -1,6 +1,25 @@
 package com.naovt.app.ui.wardrobe
 
 import androidx.activity.compose.BackHandler
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.foundation.lazy.grid.LazyGridState
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.zIndex
+import kotlin.math.abs
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -41,6 +60,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -87,6 +107,28 @@ fun WardrobeScreen(
     val tabs = WardrobeSlot.tabs
     val slot = tabs[selectedTab.coerceIn(0, tabs.lastIndex)]
 
+    val context = LocalContext.current
+    var importSlotName by rememberSaveable { mutableStateOf<String?>(null) }
+    var deleting by remember { mutableStateOf<WardrobeItem?>(null) }
+
+    // Selector nativo de imágenes (sin permisos de almacenamiento). Si se cancela, uri llega null.
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        val target = WardrobeSlot.entries.firstOrNull { it.name == importSlotName }
+        if (uri != null && target != null) viewModel.importAsset(target, uri)
+        importSlotName = null
+    }
+    val onImport: () -> Unit = {
+        importSlotName = slot.name
+        picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+    }
+
+    LaunchedEffect(viewModel.message) {
+        viewModel.message?.let {
+            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+            viewModel.clearMessage()
+        }
+    }
+
     BackHandler(onBack = onClose)
 
     Surface(
@@ -119,18 +161,36 @@ fun WardrobeScreen(
                         PreviewWithLayers(viewModel, Modifier.weight(0.5f).fillMaxHeight())
                         Column(modifier = Modifier.weight(0.5f).fillMaxHeight()) {
                             CategoryTabs(selectedTab) { selectedTab = it }
-                            AssetGrid(viewModel, slot, Modifier.weight(1f))
+                            AssetGrid(viewModel, slot, onImport, { deleting = it }, Modifier.weight(1f))
                         }
                     }
                 } else {
                     Column(modifier = Modifier.fillMaxSize()) {
                         PreviewWithLayers(viewModel, Modifier.weight(0.45f).fillMaxWidth())
                         CategoryTabs(selectedTab) { selectedTab = it }
-                        AssetGrid(viewModel, slot, Modifier.weight(0.55f))
+                        AssetGrid(viewModel, slot, onImport, { deleting = it }, Modifier.weight(0.55f))
                     }
                 }
             }
         }
+    }
+
+    // Eliminar un asset personalizado (los nativos nunca llegan aquí).
+    deleting?.let { asset ->
+        AlertDialog(
+            onDismissRequest = { deleting = null },
+            title = { Text(stringResource(R.string.wardrobe_delete_title)) },
+            text = { Text(stringResource(R.string.wardrobe_delete_message, asset.label)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.deleteAsset(asset)
+                    deleting = null
+                }) { Text(stringResource(R.string.wardrobe_delete_confirm)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleting = null }) { Text(stringResource(R.string.wardrobe_cancel)) }
+            },
+        )
     }
 }
 
@@ -189,15 +249,114 @@ private fun CategoryTabs(selectedTab: Int, onSelect: (Int) -> Unit) {
     }
 }
 
-/** Cuadrícula de la categoría: [Ninguno], todos sus assets y, al final, el recuadro "+ Próximamente". */
+/**
+ * Estado del arrastre de assets en la cuadrícula. [order] es el orden visible y se reordena en vivo
+ * mientras se arrastra; al soltar se guarda. Solo cambia el orden de la cuadrícula, nunca las capas.
+ * Misma técnica que el Gestor de Capas, pero en dos dimensiones.
+ */
+private class GridDragState(
+    val gridState: LazyGridState,
+    initialOrder: List<String>,
+) {
+    var order by mutableStateOf(initialOrder)
+    var dragged by mutableStateOf<String?>(null)
+    var dragOffset by mutableStateOf(Offset.Zero)
+
+    fun start(id: String) {
+        dragged = id
+        dragOffset = Offset.Zero
+    }
+
+    fun dragBy(delta: Offset) {
+        dragOffset += delta
+        swapIfNeeded()
+    }
+
+    /** Si el centro de la celda arrastrada pasó sobre otro asset, intercambian lugares. */
+    fun swapIfNeeded() {
+        val id = dragged ?: return
+        val infos = gridState.layoutInfo.visibleItemsInfo
+        val current = infos.firstOrNull { it.key == id } ?: return
+        val centerX = current.offset.x + dragOffset.x + current.size.width / 2f
+        val centerY = current.offset.y + dragOffset.y + current.size.height / 2f
+        val target = infos.firstOrNull {
+            val key = it.key as? String
+            key != null && key != id && key in order &&
+                centerX >= it.offset.x && centerX < it.offset.x + it.size.width &&
+                centerY >= it.offset.y && centerY < it.offset.y + it.size.height
+        } ?: return
+        val from = order.indexOf(id)
+        val to = order.indexOf(target.key as String)
+        if (from < 0 || to < 0 || from == to) return
+        order = order.toMutableList().apply { add(to, removeAt(from)) }
+        // La celda cambió de lugar: se compensa para que siga bajo el dedo.
+        dragOffset += Offset(
+            (current.offset.x - target.offset.x).toFloat(),
+            (current.offset.y - target.offset.y).toFloat(),
+        )
+    }
+
+    fun finish(): List<String> {
+        dragged = null
+        dragOffset = Offset.Zero
+        return order
+    }
+}
+
+/**
+ * Cuadrícula de la categoría: [Ninguno], todos sus assets (nativos e importados) y, al final, el
+ * recuadro "+" para importar.
+ * - Tocar un asset lo equipa.
+ * - Mantener presionado y arrastrar lo reordena (solo el orden de esta cuadrícula).
+ * - Mantener presionado sin arrastrar, en un asset importado, ofrece eliminarlo.
+ */
 @Composable
-private fun AssetGrid(viewModel: WardrobeViewModel, slot: WardrobeSlot, modifier: Modifier = Modifier) {
-    val items = viewModel.catalog.itemsFor(slot)
+private fun AssetGrid(
+    viewModel: WardrobeViewModel,
+    slot: WardrobeSlot,
+    onImport: () -> Unit,
+    onRequestDelete: (WardrobeItem) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val items = viewModel.itemsFor(slot)
     val equipped = viewModel.config.fileFor(slot)
 
     // Cada categoría tiene su propia cuadrícula (y su propio desplazamiento).
-    androidx.compose.runtime.key(slot) {
+    key(slot) {
+        val gridState = rememberLazyGridState()
+        val ids = items.map { it.fileName }
+        // Si cambia la lista (importar, eliminar, guardar un orden) el estado se arma de nuevo.
+        val drag = remember(ids) { GridDragState(gridState, ids) }
+        val byId = remember(items) { items.associateBy { it.fileName } }
+        val haptics = LocalHapticFeedback.current
+        val edgePx = with(LocalDensity.current) { 56.dp.toPx() }
+
+        // Mientras se arrastra cerca del borde superior o inferior, la cuadrícula se desplaza sola.
+        LaunchedEffect(drag.dragged) {
+            while (true) {
+                val id = drag.dragged ?: break
+                val layout = gridState.layoutInfo
+                val info = layout.visibleItemsInfo.firstOrNull { it.key == id }
+                if (info != null) {
+                    val top = info.offset.y + drag.dragOffset.y
+                    val bottom = top + info.size.height
+                    val delta = when {
+                        top < layout.viewportStartOffset + edgePx -> -14f
+                        bottom > layout.viewportEndOffset - edgePx -> 14f
+                        else -> 0f
+                    }
+                    if (delta != 0f) {
+                        val consumed = gridState.scrollBy(delta)
+                        drag.dragOffset += Offset(0f, consumed)
+                        drag.swapIfNeeded()
+                    }
+                }
+                kotlinx.coroutines.delay(16)
+            }
+        }
+
         LazyVerticalGrid(
+            state = gridState,
             columns = GridCells.Adaptive(CELL_MIN_SIZE),
             modifier = modifier.fillMaxWidth(),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
@@ -209,20 +368,51 @@ private fun AssetGrid(viewModel: WardrobeViewModel, slot: WardrobeSlot, modifier
                     NoneCell(selected = equipped == null, onClick = { viewModel.equip(slot, null) })
                 }
             }
-            items(items, key = { it.fileName }) { asset ->
-                AssetCell(
-                    item = asset,
-                    selected = asset.fileName == equipped,
-                    onClick = { viewModel.equip(slot, asset.fileName) },
-                )
+            items(drag.order, key = { it }) { id ->
+                val asset = byId[id]
+                if (asset != null) {
+                    val dragging = drag.dragged == id
+                    AssetCell(
+                        item = asset,
+                        selected = id == equipped,
+                        dragging = dragging,
+                        drag = drag,
+                        haptics = haptics,
+                        onClick = { viewModel.equip(slot, id) },
+                        onLongPressWithoutDrag = { if (asset.isCustom) onRequestDelete(asset) },
+                        onReordered = { newOrder -> viewModel.moveAssets(slot, newOrder) },
+                        modifier = if (dragging) {
+                            Modifier
+                                .zIndex(1f)
+                                .graphicsLayer {
+                                    translationX = drag.dragOffset.x
+                                    translationY = drag.dragOffset.y
+                                    scaleX = 1.06f
+                                    scaleY = 1.06f
+                                }
+                        } else {
+                            Modifier.animateItem()
+                        },
+                    )
+                }
             }
-            item(key = "coming_soon") { ComingSoonCell() }
+            item(key = "import") { ImportCell(onClick = onImport) }
         }
     }
 }
 
 @Composable
-private fun AssetCell(item: WardrobeItem, selected: Boolean, onClick: () -> Unit) {
+private fun AssetCell(
+    item: WardrobeItem,
+    selected: Boolean,
+    dragging: Boolean,
+    drag: GridDragState,
+    haptics: androidx.compose.ui.hapticfeedback.HapticFeedback,
+    onClick: () -> Unit,
+    onLongPressWithoutDrag: () -> Unit,
+    onReordered: (List<String>) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val context = LocalContext.current
     val thumbnail by produceState<ImageBitmap?>(
         initialValue = WardrobeBitmaps.cachedThumbnail(item),
@@ -230,8 +420,48 @@ private fun AssetCell(item: WardrobeItem, selected: Boolean, onClick: () -> Unit
     ) {
         value = WardrobeBitmaps.thumbnail(context, item)
     }
+    // Tras mantener presionado, al soltar no debe contarse además como un toque (equipar).
+    var suppressTap by remember { mutableStateOf(false) }
+    val currentOnClick by rememberUpdatedState(onClick)
+    val currentOnLongPress by rememberUpdatedState(onLongPressWithoutDrag)
+    val currentOnReordered by rememberUpdatedState(onReordered)
 
-    CellFrame(selected = selected, label = item.label, onClick = onClick) {
+    val gestures = Modifier
+        .pointerInput(item.fileName) {
+            detectTapGestures(
+                onPress = { suppressTap = false },
+                onTap = { if (!suppressTap) currentOnClick() },
+            )
+        }
+        .pointerInput(drag, item.fileName) {
+            var moved = 0f
+            detectDragGesturesAfterLongPress(
+                onDragStart = {
+                    suppressTap = true
+                    moved = 0f
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    drag.start(item.fileName)
+                },
+                onDrag = { change, amount ->
+                    change.consume()
+                    moved += abs(amount.x) + abs(amount.y)
+                    drag.dragBy(amount)
+                },
+                onDragEnd = {
+                    val newOrder = drag.finish()
+                    if (moved < viewConfiguration.touchSlop) currentOnLongPress() else currentOnReordered(newOrder)
+                },
+                onDragCancel = { drag.finish() },
+            )
+        }
+
+    CellFrame(
+        selected = selected,
+        label = item.label,
+        modifier = modifier,
+        highlighted = dragging,
+        interaction = gestures,
+    ) {
         thumbnail?.let {
             Image(
                 bitmap = it,
@@ -247,7 +477,7 @@ private fun AssetCell(item: WardrobeItem, selected: Boolean, onClick: () -> Unit
 @Composable
 private fun NoneCell(selected: Boolean, onClick: () -> Unit) {
     val label = stringResource(R.string.wardrobe_none)
-    CellFrame(selected = selected, label = label, onClick = onClick) {
+    CellFrame(selected = selected, label = label, interaction = Modifier.clickable(onClick = onClick)) {
         Icon(
             Icons.Default.Close,
             contentDescription = label,
@@ -258,15 +488,18 @@ private fun NoneCell(selected: Boolean, onClick: () -> Unit) {
     }
 }
 
-/** Recuadro de relleno al final de cada lista: por ahora no hace nada. */
+/** Recuadro "+" al final de cada lista: abre el selector de imágenes para importar un asset. */
 @Composable
-private fun ComingSoonCell() {
+private fun ImportCell(onClick: () -> Unit) {
     val dashColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f)
+    val shape = RoundedCornerShape(14.dp)
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(1f)
+                .clip(shape)
+                .clickable(onClick = onClick)
                 .drawBehind {
                     drawRoundRect(
                         color = dashColor,
@@ -282,14 +515,14 @@ private fun ComingSoonCell() {
             Icon(
                 Icons.Default.Add,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                 modifier = Modifier.size(36.dp),
             )
         }
         Text(
-            text = stringResource(R.string.wardrobe_coming_soon),
+            text = stringResource(R.string.wardrobe_import),
             style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
             textAlign = TextAlign.Center,
             maxLines = 1,
             modifier = Modifier.padding(top = 4.dp),
@@ -297,22 +530,29 @@ private fun ComingSoonCell() {
     }
 }
 
-/** Marco común de una celda: recuadro cuadrado con borde (resaltado si está equipada) y su nombre debajo. */
+/**
+ * Marco común de una celda: recuadro cuadrado con borde (resaltado si está equipada) y su nombre
+ * debajo. [interaction] trae los gestos de cada tipo de celda.
+ */
 @Composable
 private fun CellFrame(
     selected: Boolean,
     label: String,
-    onClick: () -> Unit,
+    interaction: Modifier,
+    modifier: Modifier = Modifier,
+    highlighted: Boolean = false,
     content: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit,
 ) {
     val shape = RoundedCornerShape(14.dp)
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(1f)
                 .clip(shape)
-                .background(MaterialTheme.colorScheme.surface)
+                .background(
+                    if (highlighted) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+                )
                 .border(
                     width = if (selected) 2.dp else 1.dp,
                     color = if (selected) {
@@ -322,7 +562,7 @@ private fun CellFrame(
                     },
                     shape = shape,
                 )
-                .clickable(onClick = onClick),
+                .then(interaction),
             content = content,
         )
         Text(

@@ -14,6 +14,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.InputStream
 
 /** Tamaño del lienzo de todas las capas del personaje. */
 const val LAYER_WIDTH = 1024
@@ -90,12 +92,34 @@ object WardrobeBitmaps {
         }
     }
 
+    /** Quita de las cachés una imagen (por ejemplo, al eliminar un asset personalizado). */
+    fun evict(path: String) {
+        for (key in layerCache.snapshot().keys) {
+            if (key.startsWith("$path@")) layerCache.remove(key)
+        }
+        thumbCache.remove(path)
+    }
+
+    /** Los personalizados viven en filesDir; los nativos, en assets/. */
+    private fun open(context: Context, path: String): InputStream =
+        if (path.startsWith("$CUSTOM_ASSETS_DIR/")) {
+            File(context.applicationContext.filesDir, path).inputStream()
+        } else {
+            context.applicationContext.assets.open(path)
+        }
+
     private fun decode(context: Context, path: String, sampleSize: Int): Bitmap? = try {
+        // Una imagen importada puede ser enorme: nunca se decodifica con más resolución que la del lienzo.
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        open(context, path).use { BitmapFactory.decodeStream(it, null, bounds) }
+        var sample = sampleSize
+        while (bounds.outHeight > 0 && bounds.outHeight / (sample * 2) >= LAYER_HEIGHT) sample *= 2
+
         val options = BitmapFactory.Options().apply {
-            inSampleSize = sampleSize
+            inSampleSize = sample
             inScaled = false
         }
-        context.applicationContext.assets.open(path).use { BitmapFactory.decodeStream(it, null, options) }
+        open(context, path).use { BitmapFactory.decodeStream(it, null, options) }
     } catch (e: Exception) {
         Log.w(TAG, "No se pudo cargar $path", e)
         null

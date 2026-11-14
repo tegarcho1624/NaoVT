@@ -53,7 +53,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.naovt.app.R
 import com.naovt.app.wardrobe.CharacterConfig
-import com.naovt.app.wardrobe.WARDROBE_ASSETS_ROOT
 import com.naovt.app.wardrobe.WardrobeBitmaps
 import com.naovt.app.wardrobe.WardrobeItem
 import com.naovt.app.wardrobe.WardrobeSlot
@@ -178,7 +177,8 @@ fun LayerPanel(
             items(drag.order, key = { it.name }) { slot ->
                 val isDragged = drag.dragged == slot
                 val file = config.fileFor(slot)
-                val item = file?.let { WardrobeItem(slot, it, "$WARDROBE_ASSETS_ROOT/${slot.folder}/$it") }
+                val path = config.assetPathFor(slot)
+                val item = if (file != null && path != null) WardrobeItem(slot, file, path) else null
                 if (item != null) {
                     LayerRow(
                         item = item,
