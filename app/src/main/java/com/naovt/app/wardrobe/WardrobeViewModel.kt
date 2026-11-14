@@ -171,6 +171,20 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    /**
+     * Reordena los outfits (arrastrar y soltar en "Mis Outfits"). [ids] es el nuevo orden completo;
+     * los outfits que no estén en la lista se conservan al final, y los ids desconocidos se ignoran.
+     */
+    fun moveOutfits(ids: List<String>) {
+        val byId = outfits.associateBy { it.id }
+        val ordered = ids.distinct().mapNotNull { byId[it] }
+        val rest = outfits.filter { it.id !in ids }
+        val next = ordered + rest
+        if (next.map { it.id } == outfits.map { it.id }) return
+        outfits = next
+        outfitStore.save(outfits)
+    }
+
     fun deleteOutfit(outfit: Outfit) {
         outfits = outfits.filter { it.id != outfit.id }
         outfitStore.save(outfits)
