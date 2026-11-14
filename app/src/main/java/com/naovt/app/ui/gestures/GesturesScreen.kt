@@ -86,6 +86,7 @@ private enum class GestureSection(
     Blink(R.string.gestures_blink, R.string.gestures_blink_desc, GestureGroup.Blink),
     Talk(R.string.gestures_talk, R.string.gestures_talk_desc, GestureGroup.Talk),
     Kiss(R.string.gestures_kiss, R.string.gestures_kiss_desc, GestureGroup.Kiss),
+    Sleep(R.string.gestures_sleep, R.string.gestures_sleep_desc, GestureGroup.Sleep),
 }
 
 /**
@@ -233,6 +234,7 @@ fun GesturesScreen(
                             GestureSection.Blink -> BlinkSection(editor, wardrobeViewModel)
                             GestureSection.Talk -> TalkSection(editor, wardrobeViewModel)
                             GestureSection.Kiss -> KissSection(editor, wardrobeViewModel)
+                            GestureSection.Sleep -> SleepSection(editor, wardrobeViewModel)
                         }
                         TextButton(
                             onClick = { editor.reset(section.group) },
@@ -435,6 +437,23 @@ private fun KissSection(vm: GestureEditor, wardrobe: WardrobeViewModel) {
     AssetSelectorRow(R.string.gestures_mouth, R.string.gestures_pick_mouth, WardrobeSlot.Mouth, s.kissMouth, wardrobe) { id ->
         vm.update { it.copy(kissMouth = id) }
     }
+}
+
+@Composable
+private fun SleepSection(vm: GestureEditor, wardrobe: WardrobeViewModel) {
+    val s = vm.settings
+    AssetSelectorRow(R.string.gestures_eyes, R.string.gestures_pick_eyes, WardrobeSlot.Eyes, s.sleepEyes, wardrobe) { id ->
+        vm.update { it.copy(sleepEyes = id) }
+    }
+    AssetSelectorRow(R.string.gestures_mouth, R.string.gestures_pick_mouth, WardrobeSlot.Mouth, s.sleepMouth, wardrobe) { id ->
+        vm.update { it.copy(sleepMouth = id) }
+    }
+    Text(
+        text = stringResource(R.string.gestures_sleep_hint),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+        modifier = Modifier.padding(horizontal = 4.dp),
+    )
 }
 
 /** Tarjeta con un slider; [hint] es una nota opcional debajo. */

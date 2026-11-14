@@ -8,6 +8,7 @@
 
     <!-- Baúl de Recuerdos -->
     <string name="vault_button">Baúl de Recuerdos</string>
+    <string name="sleep_button">Dormir</string>
     <string name="vault_title">Baúl de Recuerdos</string>
     <string name="vault_subtitle_empty">Nuestra colección</string>
     <string name="vault_count_one">1 recuerdo</string>
@@ -288,6 +289,9 @@
     <string name="gestures_talk_desc">Ojos y boca al usar la voz</string>
     <string name="gestures_kiss">Beso</string>
     <string name="gestures_kiss_desc">Ojos y boca al dar cariño</string>
+    <string name="gestures_sleep">Dormir</string>
+    <string name="gestures_sleep_desc">Ojos y boca al dormir</string>
+    <string name="gestures_sleep_hint">Se activa con «Dormir» del menú. Toca a Nao o vuelve a tocar «Dormir» para despertarla.</string>
     <string name="gestures_eyes">Ojos</string>
     <string name="gestures_mouth">Boca</string>
     <string name="gestures_mouth_open">Boca al hablar</string>

@@ -17,6 +17,7 @@ import org.json.JSONObject
  * - Pestañeo: ojos cerrados felices; cada 3 a 6 s (4.5 s de promedio) durante 0.15 s.
  * - Hablar: la boca alterna con la boca abierta feliz.
  * - Beso: ojos con corazón y boca de beso.
+ * - Dormir: ojos cerrados felices y la boca base.
  */
 data class GestureSettings(
     val blinkEyes: String? = "ojos_feliz_cerrando.png",
@@ -29,6 +30,8 @@ data class GestureSettings(
     val talkMouth: String? = "boca_abierta_feliz.png",
     val kissEyes: String? = "ojos_corazon_mejilla.png",
     val kissMouth: String? = "boca_besando.png",
+    val sleepEyes: String? = "ojos_feliz_cerrando.png",
+    val sleepMouth: String? = "boca_base.png",
 ) {
     /** JSON para guardarlo dentro de un outfit. "" = "no cambiar" (null) a propósito. */
     fun toJson(): JSONObject = JSONObject()
@@ -40,6 +43,8 @@ data class GestureSettings(
         .put("talkMouth", talkMouth.orEmpty())
         .put("kissEyes", kissEyes.orEmpty())
         .put("kissMouth", kissMouth.orEmpty())
+        .put("sleepEyes", sleepEyes.orEmpty())
+        .put("sleepMouth", sleepMouth.orEmpty())
 
     /** Copia con los valores de siempre en el grupo [group] (el resto no cambia). */
     fun withDefaults(group: GestureGroup): GestureSettings {
@@ -53,6 +58,7 @@ data class GestureSettings(
             )
             GestureGroup.Talk -> copy(talkEyes = d.talkEyes, talkMouth = d.talkMouth)
             GestureGroup.Kiss -> copy(kissEyes = d.kissEyes, kissMouth = d.kissMouth)
+            GestureGroup.Sleep -> copy(sleepEyes = d.sleepEyes, sleepMouth = d.sleepMouth)
         }
     }
 
@@ -80,6 +86,8 @@ data class GestureSettings(
                 talkMouth = asset("talkMouth", d.talkMouth),
                 kissEyes = asset("kissEyes", d.kissEyes),
                 kissMouth = asset("kissMouth", d.kissMouth),
+                sleepEyes = asset("sleepEyes", d.sleepEyes),
+                sleepMouth = asset("sleepMouth", d.sleepMouth),
             ).clamped()
         }
     }
@@ -92,7 +100,7 @@ data class GestureSettings(
 typealias CharacterGestures = GestureSettings
 
 /** Grupos de ajustes que se pueden restablecer por separado. */
-enum class GestureGroup { Blink, Talk, Kiss }
+enum class GestureGroup { Blink, Talk, Kiss, Sleep }
 
 /**
  * Guarda los ajustes de gestos en SharedPreferences y los comparte con toda la app (misma Activity):
@@ -104,6 +112,17 @@ class GesturesViewModel(application: Application) : AndroidViewModel(application
 
     var settings by mutableStateOf(load())
         private set
+
+    /**
+     * ¿Nao está dormida? Solo vive en memoria (no se guarda): al reiniciar la app despierta.
+     * La pantalla principal muestra entonces los ojos y la boca del gesto "Dormir".
+     */
+    var isSleeping by mutableStateOf(false)
+        private set
+
+    fun toggleSleep() { isSleeping = !isSleeping }
+
+    fun wakeUp() { isSleeping = false }
 
     fun update(transform: (GestureSettings) -> GestureSettings) {
         settings = transform(settings).clamped()
@@ -126,6 +145,8 @@ class GesturesViewModel(application: Application) : AndroidViewModel(application
             talkMouth = readAsset(K_TALK_MOUTH, d.talkMouth),
             kissEyes = readAsset(K_KISS_EYES, d.kissEyes),
             kissMouth = readAsset(K_KISS_MOUTH, d.kissMouth),
+            sleepEyes = readAsset(K_SLEEP_EYES, d.sleepEyes),
+            sleepMouth = readAsset(K_SLEEP_MOUTH, d.sleepMouth),
         ).clamped()
     }
 
@@ -143,6 +164,8 @@ class GesturesViewModel(application: Application) : AndroidViewModel(application
             .putString(K_TALK_MOUTH, s.talkMouth.orEmpty())
             .putString(K_KISS_EYES, s.kissEyes.orEmpty())
             .putString(K_KISS_MOUTH, s.kissMouth.orEmpty())
+            .putString(K_SLEEP_EYES, s.sleepEyes.orEmpty())
+            .putString(K_SLEEP_MOUTH, s.sleepMouth.orEmpty())
             .apply()
     }
 
@@ -156,5 +179,7 @@ class GesturesViewModel(application: Application) : AndroidViewModel(application
         const val K_TALK_MOUTH = "talk_mouth"
         const val K_KISS_EYES = "kiss_eyes"
         const val K_KISS_MOUTH = "kiss_mouth"
+        const val K_SLEEP_EYES = "sleep_eyes"
+        const val K_SLEEP_MOUTH = "sleep_mouth"
     }
 }

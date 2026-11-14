@@ -69,6 +69,7 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import com.naovt.app.ui.avatar.NaoLayeredAvatar
+import com.naovt.app.gestures.GesturesViewModel
 import com.naovt.app.gestures.rememberEffectiveGestures
 import com.naovt.app.wardrobe.WardrobeViewModel
 import com.naovt.app.ui.avatar.rememberBlink
@@ -110,6 +111,8 @@ fun NaoScreen(
     val wardrobeViewModel: WardrobeViewModel = viewModel()
     // Ojos, boca y tiempos de los gestos: los del outfit puesto o, si no tiene, los globales.
     val gestures = rememberEffectiveGestures()
+    // Dormir: el estado vive en el ViewModel de gestos (en memoria).
+    val gesturesViewModel: GesturesViewModel = viewModel()
     var tapCount by remember { mutableIntStateOf(0) }
     var expression by remember { mutableStateOf(NaoExpression.Neutral) }
     var lastPhrase by remember { mutableStateOf<String?>(null) }
@@ -121,8 +124,10 @@ fun NaoScreen(
     val phraseRepository = remember { PhraseRepository(context) }
     val voice = rememberNaoVoice()
     // Parpadea solo en estado base: sin hablar y sin cara de cariño.
+    // Una alerta tiene prioridad y se muestra aunque Nao esté dormida.
+    val isSleeping = gesturesViewModel.isSleeping && alertDisplay == null
     val isBlinking = rememberBlink(
-        canBlink = !voice.isSpeaking && shownExpression == NaoExpression.Neutral,
+        canBlink = !isSleeping && !voice.isSpeaking && shownExpression == NaoExpression.Neutral,
     )
     val talkingMouth = rememberTalkingMouth(voice.isSpeaking, openMouth = NaoMouth.Happy)
 
@@ -191,6 +196,15 @@ fun NaoScreen(
                 onChangeRoom = onOpenRooms,
                 onVault = onOpenVault,
                 onWardrobe = onOpenWardrobe,
+                onSleep = {
+                    // Al dormirla se corta lo que esté diciendo o mostrando.
+                    if (!gesturesViewModel.isSleeping) {
+                        voice.stop()
+                        expression = NaoExpression.Neutral
+                        pendingPhrase = null
+                    }
+                    gesturesViewModel.toggleSleep()
+                },
                 onToggleOverlay = onToggleOverlay,
                 afterClick = { scope.launch { drawerState.close() } }, // se cierra solo al elegir
             )
@@ -206,6 +220,7 @@ fun NaoScreen(
             mouthOverride = talkingMouth,
             isSpeaking = voice.isSpeaking,
             isBlinking = isBlinking,
+            isSleeping = isSleeping,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxHeight(0.85f)
@@ -217,6 +232,10 @@ fun NaoScreen(
                             miniChatOpen = !miniChatOpen
                         },
                         onTap = {
+                        if (gesturesViewModel.isSleeping) {
+                            // Tocarla la despierta: cara normal, sin frase ni cariño.
+                            gesturesViewModel.wakeUp()
+                        } else {
                         val phrase = phraseRepository.random(previous = lastPhrase)
                         lastPhrase = phrase
                         if (voice.isSpeaking) {
@@ -225,6 +244,7 @@ fun NaoScreen(
                         } else {
                             pendingPhrase = phrase
                             tapCount++ // cariño primero; la frase se dice al terminar
+                        }
                         }
                         },
                     )

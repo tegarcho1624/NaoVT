@@ -31,6 +31,7 @@ import com.naovt.app.wardrobe.WardrobeSlot
  *
  * La cara sigue las mismas prioridades que [NaoVTAvatar] (de mayor a menor), con los ojos y bocas
  * que se eligen en el Menú de Gestos ([gestures]):
+ * 0. Dormida: ojos y boca del gesto "Dormir" (gana sobre todo lo demás).
  * 1. Expresión especial (cariño): ojos y boca del gesto "Beso".
  * 2. Hablando: ojos del gesto "Hablar"; la boca alterna con [mouthOverride] (boca abierta de "Hablar").
  * 3. Parpadeo: ojos (y boca) del gesto "Pestañeo" un instante.
@@ -46,12 +47,14 @@ fun NaoLayeredAvatar(
     mouthOverride: NaoMouth? = null,
     isSpeaking: Boolean = false,
     isBlinking: Boolean = false,
+    isSleeping: Boolean = false,
     gestures: GestureSettings = GestureSettings(),
 ) {
     // Los gestos (Menú de Gestos) eligen ojos y boca; si no cambian nada (null) se usan los del Armario.
     val wardrobeEyes = config.fileFor(WardrobeSlot.Eyes)
     val wardrobeMouth = config.fileFor(WardrobeSlot.Mouth)
     val eyesFile: String? = when {
+        isSleeping -> gestures.sleepEyes ?: wardrobeEyes
         expression == NaoExpression.Loved -> gestures.kissEyes ?: wardrobeEyes
         // Angry y Yandere aún no tienen ojos propios: usan los elegidos.
         isSpeaking -> gestures.talkEyes ?: wardrobeEyes
@@ -59,6 +62,7 @@ fun NaoLayeredAvatar(
         else -> wardrobeEyes
     }
     val mouthFile: String? = when {
+        isSleeping -> gestures.sleepMouth ?: wardrobeMouth
         mouthOverride == NaoMouth.Happy -> gestures.talkMouth ?: wardrobeMouth
         mouthOverride == NaoMouth.Open -> gestures.kissMouth ?: wardrobeMouth
         mouthOverride == NaoMouth.Closed -> wardrobeMouth
