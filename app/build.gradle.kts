@@ -14,8 +14,8 @@ android {
         applicationId = "com.naovt.app"
         minSdk = 26 // Llamatik pide Android 8.0 (API 26) o superior
         targetSdk = 34
-        versionCode = 23
-        versionName = "0.20.0-outfits"
+        versionCode = 24
+        versionName = "0.20.1-outfits-orden"
     }
 
     buildTypes {

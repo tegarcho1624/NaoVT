@@ -96,6 +96,16 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
         outfitStore.save(outfits)
     }
 
+    /** Reordena los outfits según [ids] (los mismos outfits en el orden nuevo) y guarda el orden. */
+    fun moveOutfits(ids: List<String>) {
+        val byId = outfits.associateBy { it.id }
+        val reordered = ids.mapNotNull { byId[it] }
+        // Si la lista no trae exactamente los mismos outfits, no se toca nada.
+        if (reordered.size != outfits.size || reordered == outfits) return
+        outfits = reordered
+        outfitStore.save(outfits)
+    }
+
     fun deleteOutfit(outfit: Outfit) {
         outfits = outfits.filter { it.id != outfit.id }
         outfitStore.save(outfits)

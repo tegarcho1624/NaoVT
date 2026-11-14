@@ -3,7 +3,9 @@ package com.naovt.app.ui.wardrobe
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,8 +17,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
@@ -28,36 +32,93 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import com.naovt.app.R
 import com.naovt.app.wardrobe.Outfit
 import com.naovt.app.wardrobe.WardrobeBitmaps
 import com.naovt.app.wardrobe.WardrobeViewModel
+import kotlin.math.abs
 
 private const val MAX_NAME_LENGTH = 30
 private val CARD_WIDTH = 72.dp
 private val CARD_PREVIEW_HEIGHT = 96.dp
 
 /**
+ * Estado del arrastre de outfits. [order] (ids) es el orden visible y se reordena en vivo mientras se
+ * arrastra; al soltar se guarda. Misma técnica que el Gestor de Capas, pero en horizontal.
+ */
+private class OutfitDragState(
+    val listState: LazyListState,
+    initialOrder: List<String>,
+) {
+    var order by mutableStateOf(initialOrder)
+    var dragged by mutableStateOf<String?>(null)
+    var dragOffset by mutableFloatStateOf(0f)
+
+    fun start(id: String) {
+        dragged = id
+        dragOffset = 0f
+    }
+
+    fun dragBy(dx: Float) {
+        dragOffset += dx
+        swapIfNeeded()
+    }
+
+    /** Si el centro de la tarjeta arrastrada pasó sobre otra, intercambian lugares. */
+    fun swapIfNeeded() {
+        val id = dragged ?: return
+        val infos = listState.layoutInfo.visibleItemsInfo
+        val current = infos.firstOrNull { it.key == id } ?: return
+        val center = current.offset + dragOffset + current.size / 2f
+        val target = infos.firstOrNull {
+            it.key != id && center >= it.offset && center < it.offset + it.size
+        } ?: return
+        val from = order.indexOf(id)
+        val to = order.indexOf(target.key as? String ?: return)
+        if (from < 0 || to < 0 || from == to) return
+        order = order.toMutableList().apply { add(to, removeAt(from)) }
+        // La tarjeta cambió de lugar: se compensa para que siga bajo el dedo.
+        dragOffset += current.offset - target.offset
+    }
+
+    fun finish(): List<String> {
+        dragged = null
+        dragOffset = 0f
+        return order
+    }
+}
+
+/**
  * "Mis Outfits": el botón para guardar el atuendo actual y una fila horizontal con los conjuntos
- * guardados. Tocar uno viste a Nao con él; mantenerlo presionado ofrece eliminarlo.
+ * guardados. Tocar uno viste a Nao con él; mantenerlo presionado y arrastrarlo lo reordena;
+ * mantenerlo presionado sin arrastrar ofrece eliminarlo.
  */
 @Composable
 fun OutfitsSection(viewModel: WardrobeViewModel, modifier: Modifier = Modifier) {
@@ -91,17 +152,67 @@ fun OutfitsSection(viewModel: WardrobeViewModel, modifier: Modifier = Modifier) 
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
         } else {
+            val listState = rememberLazyListState()
+            val ids = outfits.map { it.id }
+            // Si cambia la lista (guardar, eliminar, guardar un orden) el estado se arma de nuevo.
+            val drag = remember(ids) { OutfitDragState(listState, ids) }
+            val byId = remember(outfits) { outfits.associateBy { it.id } }
+            val haptics = LocalHapticFeedback.current
+            val edgePx = with(LocalDensity.current) { 48.dp.toPx() }
+
+            // Mientras se arrastra cerca de un borde, la fila se desplaza sola.
+            LaunchedEffect(drag.dragged) {
+                while (true) {
+                    val id = drag.dragged ?: break
+                    val layout = listState.layoutInfo
+                    val info = layout.visibleItemsInfo.firstOrNull { it.key == id }
+                    if (info != null) {
+                        val start = info.offset + drag.dragOffset
+                        val end = start + info.size
+                        val delta = when {
+                            start < layout.viewportStartOffset + edgePx -> -14f
+                            end > layout.viewportEndOffset - edgePx -> 14f
+                            else -> 0f
+                        }
+                        if (delta != 0f) {
+                            drag.dragOffset += listState.scrollBy(delta)
+                            drag.swapIfNeeded()
+                        }
+                    }
+                    kotlinx.coroutines.delay(16)
+                }
+            }
+
             LazyRow(
+                state = listState,
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                items(outfits, key = { it.id }) { outfit ->
-                    OutfitCard(
-                        outfit = outfit,
-                        viewModel = viewModel,
-                        onApply = { viewModel.applyOutfit(outfit) },
-                        onLongPress = { deleting = outfit },
-                    )
+                items(drag.order, key = { it }) { id ->
+                    val outfit = byId[id]
+                    if (outfit != null) {
+                        val dragging = drag.dragged == id
+                        OutfitCard(
+                            outfit = outfit,
+                            viewModel = viewModel,
+                            drag = drag,
+                            haptics = haptics,
+                            onApply = { viewModel.applyOutfit(outfit) },
+                            onLongPress = { deleting = outfit },
+                            onReordered = { newOrder -> viewModel.moveOutfits(newOrder) },
+                            modifier = if (dragging) {
+                                Modifier
+                                    .zIndex(1f)
+                                    .graphicsLayer {
+                                        translationX = drag.dragOffset
+                                        scaleX = 1.06f
+                                        scaleY = 1.06f
+                                    }
+                            } else {
+                                Modifier.animateItem()
+                            },
+                        )
+                    }
                 }
             }
         }
@@ -141,8 +252,12 @@ fun OutfitsSection(viewModel: WardrobeViewModel, modifier: Modifier = Modifier) 
 private fun OutfitCard(
     outfit: Outfit,
     viewModel: WardrobeViewModel,
+    drag: OutfitDragState,
+    haptics: HapticFeedback,
     onApply: () -> Unit,
     onLongPress: () -> Unit,
+    onReordered: (List<String>) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     // Si un asset del outfit ya no existe, la vista previa lo omite igual que al aplicarlo.
@@ -155,11 +270,42 @@ private fun OutfitCard(
     }
     val shape = RoundedCornerShape(14.dp)
 
+    // Tras mantener presionado, al soltar no debe contarse además como un toque (vestir).
+    var suppressTap by remember { mutableStateOf(false) }
+    val currentOnApply by rememberUpdatedState(onApply)
+    val currentOnLongPress by rememberUpdatedState(onLongPress)
+    val currentOnReordered by rememberUpdatedState(onReordered)
+
     Column(
-        modifier = Modifier
+        modifier = modifier
             .width(CARD_WIDTH)
             .pointerInput(outfit.id) {
-                detectTapGestures(onTap = { onApply() }, onLongPress = { onLongPress() })
+                detectTapGestures(
+                    onPress = { suppressTap = false },
+                    onTap = { if (!suppressTap) currentOnApply() },
+                )
+            }
+            .pointerInput(drag, outfit.id) {
+                var moved = 0f
+                detectDragGesturesAfterLongPress(
+                    onDragStart = {
+                        suppressTap = true
+                        moved = 0f
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        drag.start(outfit.id)
+                    },
+                    onDrag = { change, amount ->
+                        change.consume()
+                        moved += abs(amount.x) + abs(amount.y)
+                        drag.dragBy(amount.x)
+                    },
+                    onDragEnd = {
+                        val newOrder = drag.finish()
+                        // Sin arrastrar = pulsación larga: ofrece eliminar. Arrastrando: solo reordena.
+                        if (moved < viewConfiguration.touchSlop) currentOnLongPress() else currentOnReordered(newOrder)
+                    },
+                    onDragCancel = { drag.finish() },
+                )
             },
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
