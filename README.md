@@ -1,4 +1,4 @@
-# NaoVT — Fase 22 (Outfits reordenables)
+# NaoVT — Fase 23 (Menú de Gestos)
 
 Mascota virtual Naomi en Android (Jetpack Compose, tema oscuro).
 
@@ -26,6 +26,7 @@ Mascota virtual Naomi en Android (Jetpack Compose, tema oscuro).
   - Gestor de Capas (fase 19): `ui/wardrobe/LayerPanel.kt` (panel lateral con arrastrar y soltar). El orden manual vive en `CharacterConfig.order` (se guarda con `WardrobeViewModel.reorder`); `WardrobeSlot.z` solo es el orden inicial.
   - Assets propios (fase 20): el "+" de cada categoría importa un PNG/JPEG con PickVisualMedia a `filesDir/assets_personalizados/<categoría>/` (`wardrobe/CustomAssetStore.kt`; registro y orden en JSON en SharedPreferences `naovt_wardrobe_items`). Los importados se identifican como `custom/<archivo>`; los nativos nunca se pueden borrar. En la cuadrícula: tocar = equipar, mantener y arrastrar = reordenar (solo orden visual), mantener sin arrastrar en un importado = eliminar.
   - Outfits (fase 21): `wardrobe/Outfit.kt` (modelo + JSON en SharedPreferences `naovt_outfits`: nombre, asset por categoría y orden de capas). `ui/wardrobe/OutfitsSection.kt`: botón "Guardar Outfit" y fila "Mis Outfits" (tocar = vestir, mantener y arrastrar = reordenar, mantener sin arrastrar = eliminar; el orden se guarda con la lista JSON). Al vestir un outfit, los assets que ya no existen se ignoran (`WardrobeViewModel.resolveOutfit`).
+  - Gestos (fase 23): `gestures/GestureSettings.kt` (ojos/boca de Pestañeo, Hablar y Beso + frecuencia y duración del parpadeo; SharedPreferences `naovt_gestures`; `null` = usar los ojos/boca del Armario). `ui/gestures/GesturesScreen.kt` es la pantalla; `rememberBlink` y `NaoLayeredAvatar` leen esos ajustes en tiempo real. El ícono de mano (`ui/icons/TouchAppIcon.kt`) es un vector propio porque solo se incluye `material-icons-core`. El Modo Flotante (overlay) aún no usa estos ajustes.
   - `ui/avatar/NaoLayeredAvatar.kt`: dibuja las capas (pantalla principal y vista previa); `ui/wardrobe/WardrobeScreen.kt`: pantalla del Armario.
   - Pendiente: el Modo Flotante, las alertas y `NaoHeadBadge` siguen con el arte anterior de `res/drawable/` (no se borró).
 - Assets anteriores en `app/src/main/res/drawable/`

@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import com.naovt.app.R
 import com.naovt.app.ui.avatar.NaoExpression
 import com.naovt.app.ui.avatar.NaoHeadBadge
+import com.naovt.app.ui.icons.TouchAppIcon
 
 /**
  * Contenido del menú lateral: la foto y el nombre de Nao arriba y, debajo, todos los accesos
@@ -53,6 +54,7 @@ fun NaoDrawerContent(
     onPhrases: () -> Unit,
     onPomodoro: () -> Unit,
     onVoiceSettings: () -> Unit,
+    onGestures: () -> Unit,
     onChangeRoom: () -> Unit,
     onVault: () -> Unit,
     onWardrobe: () -> Unit,
@@ -90,6 +92,7 @@ fun NaoDrawerContent(
             DrawerItem(Icons.Default.Edit, stringResource(R.string.phrases_button), onPhrases, afterClick)
             DrawerItem(Icons.Default.Star, stringResource(R.string.pomodoro_button), onPomodoro, afterClick)
             DrawerItem(Icons.Default.Settings, stringResource(R.string.voice_settings_button), onVoiceSettings, afterClick)
+            DrawerItem(TouchAppIcon, stringResource(R.string.gestures_button), onGestures, afterClick)
             DrawerItem(Icons.Default.Home, stringResource(R.string.change_room), onChangeRoom, afterClick)
             DrawerItem(Icons.Default.Person, stringResource(R.string.wardrobe_button), onWardrobe, afterClick)
             DrawerItem(Icons.Default.Favorite, stringResource(R.string.vault_button), onVault, afterClick)

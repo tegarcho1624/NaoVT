@@ -8,17 +8,22 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.naovt.app.gestures.GesturesViewModel
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.delay
 import kotlin.random.Random
 
-private const val MIN_WAIT_MS = 3000L
-private const val MAX_WAIT_MS = 6000L
-private const val BLINK_DURATION_MS = 150L
+// El tiempo entre parpadeos varía al azar entre 2/3 y 4/3 del valor elegido en Gestos. Con el valor
+// de siempre (4.5 s) eso es de 3 a 6 s.
+private const val WAIT_MIN_FACTOR = 2f / 3f
+private const val WAIT_MAX_FACTOR = 4f / 3f
 
 /**
- * Parpadeo autónomo. Cada 3 a 6 segundos (al azar) devuelve true durante 150 ms.
+ * Parpadeo autónomo. Devuelve true mientras los ojos están cerrados. La frecuencia y la duración
+ * salen de los ajustes de Gestos (por defecto: cada 3 a 6 s, durante 150 ms) y se leen en cada
+ * ciclo, así que un cambio se nota en el siguiente parpadeo.
  *
  * Solo parpadea si [canBlink] es true en ese momento (Nao en estado base: sin hablar ni cariño).
  *
@@ -30,15 +35,19 @@ private const val BLINK_DURATION_MS = 150L
 fun rememberBlink(canBlink: Boolean): Boolean {
     var eyesClosed by remember { mutableStateOf(false) }
     val currentCanBlink by rememberUpdatedState(canBlink)
+    val gestures: GesturesViewModel = viewModel()
+    val currentSettings by rememberUpdatedState(gestures.settings)
     val lifecycleOwner = LocalLifecycleOwner.current
 
     LaunchedEffect(lifecycleOwner) {
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             while (true) {
-                delay(Random.nextLong(MIN_WAIT_MS, MAX_WAIT_MS))
+                val settings = currentSettings
+                val averageMs = settings.blinkIntervalSec * 1000f
+                delay(Random.nextLong((averageMs * WAIT_MIN_FACTOR).toLong(), (averageMs * WAIT_MAX_FACTOR).toLong() + 1))
                 if (currentCanBlink) {
                     eyesClosed = true
-                    delay(BLINK_DURATION_MS)
+                    delay((currentSettings.blinkDurationSec * 1000f).toLong())
                     eyesClosed = false
                 }
             }

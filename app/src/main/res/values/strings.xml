@@ -264,4 +264,29 @@
     <string name="wardrobe_outfit_delete_confirm">Eliminar outfit</string>
     <string name="wardrobe_layers">Capas</string>
     <string name="wardrobe_drag_handle">Mantén presionado y arrastra para reordenar</string>
+
+    <!-- Gestos -->
+    <string name="gestures_button">Gestos</string>
+    <string name="gestures_title">Gestos</string>
+    <string name="gestures_back">Volver</string>
+    <string name="gestures_outfits">Gestos de Conjuntos</string>
+    <string name="gestures_outfits_desc">Animaciones propias para cada outfit</string>
+    <string name="gestures_coming_soon">Próximamente</string>
+    <string name="gestures_blink">Pestañeo</string>
+    <string name="gestures_blink_desc">Ojos, boca, frecuencia y duración</string>
+    <string name="gestures_talk">Hablar</string>
+    <string name="gestures_talk_desc">Ojos y boca al usar la voz</string>
+    <string name="gestures_kiss">Beso</string>
+    <string name="gestures_kiss_desc">Ojos y boca al dar cariño</string>
+    <string name="gestures_eyes">Ojos</string>
+    <string name="gestures_mouth">Boca</string>
+    <string name="gestures_mouth_open">Boca al hablar</string>
+    <string name="gestures_pick_eyes">Elegir ojos</string>
+    <string name="gestures_pick_mouth">Elegir boca</string>
+    <string name="gestures_from_wardrobe">Los del Armario</string>
+    <string name="gestures_blink_every">Frecuencia: cada %1$s s</string>
+    <string name="gestures_blink_every_hint">Es el promedio: Nao parpadea un poco antes o después, al azar.</string>
+    <string name="gestures_blink_for">Duración: %1$s s con los ojos cerrados</string>
+    <string name="gestures_talk_hint">Mientras habla, la boca alterna entre la del Armario y esta boca abierta.</string>
+    <string name="gestures_reset">Restablecer valores</string>
 </resources>

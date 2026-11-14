@@ -23,6 +23,7 @@ import com.naovt.app.ui.phrases.PhrasesScreen
 import com.naovt.app.ui.rooms.RoomsScreen
 import com.naovt.app.ui.pomodoro.PomodoroScreen
 import com.naovt.app.ui.voice.VoiceSettingsScreen
+import com.naovt.app.ui.gestures.GesturesScreen
 import com.naovt.app.ui.vault.VaultScreen
 import com.naovt.app.ui.wardrobe.WardrobeScreen
 
@@ -48,9 +49,10 @@ fun NaoApp(
     var chatOpen by rememberSaveable { mutableStateOf(false) }
     var roomsOpen by rememberSaveable { mutableStateOf(false) }
     var wardrobeOpen by rememberSaveable { mutableStateOf(false) }
+    var gesturesOpen by rememberSaveable { mutableStateOf(false) }
     // Si alguna pantalla tapa el fondo, el video se pausa (ahorra batería).
     val screenCoversBackground = vaultOpen || alertsOpen || phrasesOpen || pomodoroOpen ||
-        voiceSettingsOpen || chatOpen || roomsOpen || wardrobeOpen
+        voiceSettingsOpen || chatOpen || roomsOpen || wardrobeOpen || gesturesOpen
     val overlay = rememberOverlayController()
 
     LaunchedEffect(destination) {
@@ -73,6 +75,7 @@ fun NaoApp(
             onOpenChat = { chatOpen = true },
             onOpenRooms = { roomsOpen = true },
             onOpenWardrobe = { wardrobeOpen = true },
+            onOpenGestures = { gesturesOpen = true },
             backgroundPaused = screenCoversBackground,
             isOverlayRunning = NaoOverlayService.isRunning,
             onToggleOverlay = { if (NaoOverlayService.isRunning) overlay.stop() else overlay.start() },
@@ -142,6 +145,14 @@ fun NaoApp(
             exit = fadeOut(),
         ) {
             WardrobeScreen(onClose = { wardrobeOpen = false })
+        }
+
+        AnimatedVisibility(
+            visible = gesturesOpen,
+            enter = fadeIn() + slideInVertically { it / 12 },
+            exit = fadeOut(),
+        ) {
+            GesturesScreen(onClose = { gesturesOpen = false })
         }
     }
 }
