@@ -4,11 +4,13 @@ import android.app.Application
 import android.content.Context
 import android.net.Uri
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.naovt.app.R
+import com.naovt.app.gestures.CharacterGestures
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -41,6 +43,23 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
     /** Outfits guardados, en el orden en que se crearon. */
     var outfits by mutableStateOf(outfitStore.load())
         private set
+
+    /** Sube cada vez que se genera la imagen de un outfit, para que las pantallas la vuelvan a leer. */
+    var previewVersion by mutableIntStateOf(0)
+        private set
+
+    /** Una importación que espera que el usuario escriba el nombre (la galería no dio el real). */
+    data class PendingImport(val slot: WardrobeSlot, val uri: Uri)
+
+    var pendingImport by mutableStateOf<PendingImport?>(null)
+        private set
+
+    /** Último outfit puesto o guardado (desempata si dos outfits son idénticos). */
+    private var lastOutfitId: String? = prefs.getString(KEY_LAST_OUTFIT, null)
+
+    init {
+        backfillPreviews()
+    }
 
     /** Aviso para mostrar al usuario (un Toast); la pantalla lo muestra y llama a [clearMessage]. */
     /** Id de string del aviso (R.string.*). */
@@ -87,28 +106,79 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
         prefs.edit().putString(KEY_ORDER, updated.order.joinToString(",") { it.name }).apply()
     }
 
-    /** Guarda el atuendo actual (assets de cada categoría y orden de capas) con el nombre [name]. */
+    /**
+     * Guarda el atuendo actual (assets de cada categoría y orden de capas) con el nombre [name], y
+     * genera su imagen estática en `filesDir/previews/<id>.png`. El outfit nuevo nace sin gestos
+     * propios (usa los globales) y queda como el outfit puesto.
+     */
     fun saveOutfit(name: String) {
         val clean = name.trim()
         if (clean.isEmpty()) return
         val outfit = Outfit(UUID.randomUUID().toString(), clean, config.selections(), config.order)
         outfits = outfits + outfit
         outfitStore.save(outfits)
+        rememberLastOutfit(outfit.id)
+        savePreview(outfit.id, config.layerPaths())
     }
 
-    /** Reordena los outfits según [ids] (los mismos outfits en el orden nuevo) y guarda el orden. */
-    fun moveOutfits(ids: List<String>) {
-        val byId = outfits.associateBy { it.id }
-        val reordered = ids.mapNotNull { byId[it] }
-        // Si la lista no trae exactamente los mismos outfits, no se toca nada.
-        if (reordered.size != outfits.size || reordered == outfits) return
-        outfits = reordered
+    fun renameOutfit(outfit: Outfit, name: String) {
+        val clean = name.trim()
+        if (clean.isEmpty()) return
+        updateOutfit(outfit.id) { it.copy(name = clean) }
+    }
+
+    /** Guarda los gestos propios de un outfit; null = que use los globales. */
+    fun setOutfitGestures(outfitId: String, gestures: CharacterGestures?) {
+        updateOutfit(outfitId) { it.copy(gestures = gestures) }
+    }
+
+    private fun updateOutfit(id: String, transform: (Outfit) -> Outfit) {
+        if (outfits.none { it.id == id }) return
+        outfits = outfits.map { if (it.id == id) transform(it) else it }
         outfitStore.save(outfits)
+    }
+
+    /**
+     * El outfit que Nao lleva puesto ahora mismo: aquel cuyo atuendo coincide exactamente con el
+     * actual. Si Nao se cambió algo después, ya no es ese outfit y rigen los gestos globales.
+     */
+    fun activeOutfit(): Outfit? {
+        val matches = outfits.filter { resolveOutfit(it) == config }
+        return matches.firstOrNull { it.id == lastOutfitId } ?: matches.firstOrNull()
+    }
+
+    private fun rememberLastOutfit(id: String) {
+        lastOutfitId = id
+        prefs.edit().putString(KEY_LAST_OUTFIT, id).apply()
+    }
+
+    private fun savePreview(outfitId: String, layerPaths: List<String>) {
+        val context = getApplication<Application>()
+        viewModelScope.launch {
+            if (OutfitPreviews.save(context, outfitId, layerPaths)) previewVersion++
+        }
+    }
+
+    /** Los outfits guardados antes de existir las imágenes estáticas reciben la suya al abrir la app. */
+    private fun backfillPreviews() {
+        val context = getApplication<Application>()
+        val missing = outfits.filter { !OutfitPreviews.exists(context, it.id) }
+        if (missing.isEmpty()) return
+        viewModelScope.launch {
+            for (outfit in missing) {
+                if (OutfitPreviews.save(context, outfit.id, resolveOutfit(outfit).layerPaths())) previewVersion++
+            }
+        }
     }
 
     fun deleteOutfit(outfit: Outfit) {
         outfits = outfits.filter { it.id != outfit.id }
         outfitStore.save(outfits)
+        OutfitPreviews.delete(getApplication(), outfit.id)
+        if (lastOutfitId == outfit.id) {
+            lastOutfitId = null
+            prefs.edit().remove(KEY_LAST_OUTFIT).apply()
+        }
     }
 
     /**
@@ -134,6 +204,7 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
     fun applyOutfit(outfit: Outfit) {
         val resolved = resolveOutfit(outfit)
         config = resolved
+        rememberLastOutfit(outfit.id)
         prefs.edit().apply {
             for (slot in WardrobeSlot.entries) putString(slot.name, resolved.fileFor(slot).orEmpty())
             putString(KEY_ORDER, resolved.order.joinToString(",") { it.name })
@@ -150,19 +221,34 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
         savedOrders = savedOrders + (slot to ids)
     }
 
-    /** Importa la imagen elegida en el selector a la categoría [slot]. */
-    fun importAsset(slot: WardrobeSlot, uri: Uri) {
+    /**
+     * Importa la imagen elegida en el selector a la categoría [slot]. El asset toma el nombre real
+     * del archivo; si la galería no lo da, se pide al usuario ([pendingImport]).
+     */
+    fun importAsset(slot: WardrobeSlot, uri: Uri, name: String? = null) {
         viewModelScope.launch {
-            val result = withContext(Dispatchers.IO) { store.import(slot, uri) }
+            val result = withContext(Dispatchers.IO) { store.import(slot, uri, name) }
             when (result) {
                 is ImportResult.Success -> {
                     customItems = customItems + (slot to loadCustomItems(slot))
                     if (result.stretched) message = R.string.wardrobe_import_stretched
                 }
+                ImportResult.NeedsName -> pendingImport = PendingImport(slot, uri)
                 ImportResult.Invalid -> message = R.string.wardrobe_import_invalid
                 ImportResult.Failed -> message = R.string.wardrobe_import_failed
             }
         }
+    }
+
+    /** El usuario escribió el nombre de la importación pendiente. */
+    fun confirmImportName(name: String) {
+        val pending = pendingImport ?: return
+        pendingImport = null
+        importAsset(pending.slot, pending.uri, name)
+    }
+
+    fun cancelImportName() {
+        pendingImport = null
     }
 
     /**
@@ -216,5 +302,6 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
     private companion object {
         const val PREFS_NAME = "naovt_character"
         const val KEY_ORDER = "layer_order"
+        const val KEY_LAST_OUTFIT = "last_outfit_id"
     }
 }

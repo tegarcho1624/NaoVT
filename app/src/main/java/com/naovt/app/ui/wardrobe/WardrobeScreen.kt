@@ -10,6 +10,7 @@ import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
@@ -177,6 +178,36 @@ fun WardrobeScreen(
                 }
             }
         }
+    }
+
+    // La galería no dio el nombre real de la imagen: se le pide al usuario.
+    viewModel.pendingImport?.let { pending ->
+        var assetName by rememberSaveable(pending.uri.toString()) { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { viewModel.cancelImportName() },
+            title = { Text(stringResource(R.string.wardrobe_import_name_title)) },
+            text = {
+                Column {
+                    Text(stringResource(R.string.wardrobe_import_name_message))
+                    OutlinedTextField(
+                        value = assetName,
+                        onValueChange = { assetName = it.take(60) },
+                        singleLine = true,
+                        label = { Text(stringResource(R.string.wardrobe_import_name_hint)) },
+                        modifier = Modifier.padding(top = 12.dp),
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { viewModel.confirmImportName(assetName) },
+                    enabled = assetName.isNotBlank(),
+                ) { Text(stringResource(R.string.wardrobe_import)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.cancelImportName() }) { Text(stringResource(R.string.wardrobe_cancel)) }
+            },
+        )
     }
 
     // Eliminar un asset personalizado (los nativos nunca llegan aquí).

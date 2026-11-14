@@ -118,11 +118,14 @@ private class OutfitDragState(
 /**
  * "Mis Outfits": el botón para guardar el atuendo actual y una fila horizontal con los conjuntos
  * guardados. Tocar uno viste a Nao con él; mantenerlo presionado y arrastrarlo lo reordena;
- * mantenerlo presionado sin arrastrar ofrece eliminarlo.
+ * mantenerlo presionado sin arrastrar ofrece cambiarle el nombre o eliminarlo.
  */
 @Composable
 fun OutfitsSection(viewModel: WardrobeViewModel, modifier: Modifier = Modifier) {
     var saving by rememberSaveable { mutableStateOf(false) }
+    // Mantener presionado un outfit abre sus opciones; de ahí se pasa a renombrar o a eliminar.
+    var options by remember { mutableStateOf<Outfit?>(null) }
+    var renaming by remember { mutableStateOf<Outfit?>(null) }
     var deleting by remember { mutableStateOf<Outfit?>(null) }
     val outfits = viewModel.outfits
 
@@ -198,7 +201,7 @@ fun OutfitsSection(viewModel: WardrobeViewModel, modifier: Modifier = Modifier) 
                             drag = drag,
                             haptics = haptics,
                             onApply = { viewModel.applyOutfit(outfit) },
-                            onLongPress = { deleting = outfit },
+                            onLongPress = { options = outfit },
                             onReordered = { newOrder -> viewModel.moveOutfits(newOrder) },
                             modifier = if (dragging) {
                                 Modifier
@@ -219,12 +222,55 @@ fun OutfitsSection(viewModel: WardrobeViewModel, modifier: Modifier = Modifier) 
     }
 
     if (saving) {
-        SaveOutfitDialog(
-            defaultName = stringResource(R.string.wardrobe_outfit_default_name, outfits.size + 1),
+        OutfitNameDialog(
+            title = stringResource(R.string.wardrobe_outfit_name_title),
+            initialName = stringResource(R.string.wardrobe_outfit_default_name, outfits.size + 1),
+            confirmLabel = stringResource(R.string.wardrobe_save),
             onDismiss = { saving = false },
-            onSave = { name ->
+            onConfirm = { name ->
                 viewModel.saveOutfit(name)
                 saving = false
+            },
+        )
+    }
+
+    options?.let { outfit ->
+        AlertDialog(
+            onDismissRequest = { options = null },
+            title = { Text(outfit.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+            text = {
+                Column {
+                    TextButton(
+                        onClick = {
+                            renaming = outfit
+                            options = null
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text(stringResource(R.string.wardrobe_outfit_rename), modifier = Modifier.fillMaxWidth()) }
+                    TextButton(
+                        onClick = {
+                            deleting = outfit
+                            options = null
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text(stringResource(R.string.wardrobe_outfit_delete_confirm), modifier = Modifier.fillMaxWidth()) }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { options = null }) { Text(stringResource(R.string.wardrobe_cancel)) }
+            },
+        )
+    }
+
+    renaming?.let { outfit ->
+        OutfitNameDialog(
+            title = stringResource(R.string.wardrobe_outfit_rename_title),
+            initialName = outfit.name,
+            confirmLabel = stringResource(R.string.wardrobe_save),
+            onDismiss = { renaming = null },
+            onConfirm = { name ->
+                viewModel.renameOutfit(outfit, name)
+                renaming = null
             },
         )
     }
@@ -259,15 +305,6 @@ private fun OutfitCard(
     onReordered: (List<String>) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val context = LocalContext.current
-    // Si un asset del outfit ya no existe, la vista previa lo omite igual que al aplicarlo.
-    val layerPaths = viewModel.resolveOutfit(outfit).layerPaths()
-    val preview by produceState<ImageBitmap?>(
-        initialValue = WardrobeBitmaps.cachedPreview(layerPaths),
-        key1 = layerPaths,
-    ) {
-        value = WardrobeBitmaps.outfitPreview(context, layerPaths)
-    }
     val shape = RoundedCornerShape(14.dp)
 
     // Tras mantener presionado, al soltar no debe contarse además como un toque (vestir).
@@ -301,7 +338,7 @@ private fun OutfitCard(
                     },
                     onDragEnd = {
                         val newOrder = drag.finish()
-                        // Sin arrastrar = pulsación larga: ofrece eliminar. Arrastrando: solo reordena.
+                        // Sin arrastrar = pulsación larga: ofrece renombrar o eliminar. Arrastrando: solo reordena.
                         if (moved < viewConfiguration.touchSlop) currentOnLongPress() else currentOnReordered(newOrder)
                     },
                     onDragCancel = { drag.finish() },
@@ -317,14 +354,7 @@ private fun OutfitCard(
                 .background(MaterialTheme.colorScheme.surface)
                 .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f), shape),
         ) {
-            preview?.let {
-                Image(
-                    bitmap = it,
-                    contentDescription = outfit.name,
-                    modifier = Modifier.fillMaxSize().padding(2.dp),
-                    contentScale = ContentScale.Fit,
-                )
-            }
+            OutfitPreviewImage(outfit, viewModel, Modifier.fillMaxSize().padding(2.dp))
         }
         Text(
             text = outfit.name,
@@ -338,13 +368,19 @@ private fun OutfitCard(
     }
 }
 
-/** Pregunta el nombre del conjunto. Solo permite guardar si el nombre no está vacío. */
+/** Pide el nombre de un conjunto (para guardarlo o cambiarlo). Solo permite aceptar si no está vacío. */
 @Composable
-private fun SaveOutfitDialog(defaultName: String, onDismiss: () -> Unit, onSave: (String) -> Unit) {
-    var name by rememberSaveable { mutableStateOf(defaultName) }
+private fun OutfitNameDialog(
+    title: String,
+    initialName: String,
+    confirmLabel: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit,
+) {
+    var name by rememberSaveable { mutableStateOf(initialName) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.wardrobe_outfit_name_title)) },
+        title = { Text(title) },
         text = {
             OutlinedTextField(
                 value = name,
@@ -354,9 +390,7 @@ private fun SaveOutfitDialog(defaultName: String, onDismiss: () -> Unit, onSave:
             )
         },
         confirmButton = {
-            TextButton(onClick = { onSave(name) }, enabled = name.isNotBlank()) {
-                Text(stringResource(R.string.wardrobe_save))
-            }
+            TextButton(onClick = { onConfirm(name) }, enabled = name.isNotBlank()) { Text(confirmLabel) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.wardrobe_cancel)) } },
     )

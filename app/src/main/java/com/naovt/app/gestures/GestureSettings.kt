@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
+import org.json.JSONObject
 
 /**
  * Cómo se anima Nao en cada gesto. Los ojos y la boca son identificadores de asset (los mismos que
@@ -29,6 +30,32 @@ data class GestureSettings(
     val kissEyes: String? = "ojos_corazon_mejilla.png",
     val kissMouth: String? = "boca_besando.png",
 ) {
+    /** JSON para guardarlo dentro de un outfit. "" = "no cambiar" (null) a propósito. */
+    fun toJson(): JSONObject = JSONObject()
+        .put("blinkEyes", blinkEyes.orEmpty())
+        .put("blinkMouth", blinkMouth.orEmpty())
+        .put("blinkIntervalSec", blinkIntervalSec.toDouble())
+        .put("blinkDurationSec", blinkDurationSec.toDouble())
+        .put("talkEyes", talkEyes.orEmpty())
+        .put("talkMouth", talkMouth.orEmpty())
+        .put("kissEyes", kissEyes.orEmpty())
+        .put("kissMouth", kissMouth.orEmpty())
+
+    /** Copia con los valores de siempre en el grupo [group] (el resto no cambia). */
+    fun withDefaults(group: GestureGroup): GestureSettings {
+        val d = GestureSettings()
+        return when (group) {
+            GestureGroup.Blink -> copy(
+                blinkEyes = d.blinkEyes,
+                blinkMouth = d.blinkMouth,
+                blinkIntervalSec = d.blinkIntervalSec,
+                blinkDurationSec = d.blinkDurationSec,
+            )
+            GestureGroup.Talk -> copy(talkEyes = d.talkEyes, talkMouth = d.talkMouth)
+            GestureGroup.Kiss -> copy(kissEyes = d.kissEyes, kissMouth = d.kissMouth)
+        }
+    }
+
     /** Copia con los tiempos dentro de los rangos permitidos. */
     fun clamped() = copy(
         blinkIntervalSec = blinkIntervalSec.coerceIn(INTERVAL_RANGE),
@@ -38,8 +65,31 @@ data class GestureSettings(
     companion object {
         val INTERVAL_RANGE = 2f..10f
         val DURATION_RANGE = 0.1f..0.5f
+
+        /** Lee lo guardado por [toJson]; lo que falte toma el valor de siempre. */
+        fun fromJson(json: JSONObject): GestureSettings {
+            val d = GestureSettings()
+            fun asset(key: String, default: String?): String? =
+                if (json.has(key)) json.optString(key, "").ifEmpty { null } else default
+            return GestureSettings(
+                blinkEyes = asset("blinkEyes", d.blinkEyes),
+                blinkMouth = asset("blinkMouth", d.blinkMouth),
+                blinkIntervalSec = json.optDouble("blinkIntervalSec", d.blinkIntervalSec.toDouble()).toFloat(),
+                blinkDurationSec = json.optDouble("blinkDurationSec", d.blinkDurationSec.toDouble()).toFloat(),
+                talkEyes = asset("talkEyes", d.talkEyes),
+                talkMouth = asset("talkMouth", d.talkMouth),
+                kissEyes = asset("kissEyes", d.kissEyes),
+                kissMouth = asset("kissMouth", d.kissMouth),
+            ).clamped()
+        }
     }
 }
+
+/**
+ * Los gestos de un personaje: los globales del Menú de Gestos, o los propios de un outfit
+ * ([com.naovt.app.wardrobe.Outfit.gestures]). Es el mismo modelo en ambos casos.
+ */
+typealias CharacterGestures = GestureSettings
 
 /** Grupos de ajustes que se pueden restablecer por separado. */
 enum class GestureGroup { Blink, Talk, Kiss }
@@ -62,19 +112,7 @@ class GesturesViewModel(application: Application) : AndroidViewModel(application
 
     /** Vuelve a los valores de siempre del grupo [group]. */
     fun reset(group: GestureGroup) {
-        val d = GestureSettings()
-        update {
-            when (group) {
-                GestureGroup.Blink -> it.copy(
-                    blinkEyes = d.blinkEyes,
-                    blinkMouth = d.blinkMouth,
-                    blinkIntervalSec = d.blinkIntervalSec,
-                    blinkDurationSec = d.blinkDurationSec,
-                )
-                GestureGroup.Talk -> it.copy(talkEyes = d.talkEyes, talkMouth = d.talkMouth)
-                GestureGroup.Kiss -> it.copy(kissEyes = d.kissEyes, kissMouth = d.kissMouth)
-            }
-        }
+        update { it.withDefaults(group) }
     }
 
     private fun load(): GestureSettings {

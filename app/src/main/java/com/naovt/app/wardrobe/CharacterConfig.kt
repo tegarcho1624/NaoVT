@@ -20,9 +20,15 @@ data class WardrobeItem(
     val isCustom: Boolean
         get() = fileName.startsWith(CUSTOM_ID_PREFIX)
 
-    /** Nombre legible para el Armario: "vestido maid". */
+    /**
+     * Nombre visible en el Armario. Nativos: "vestido maid" (los guiones bajos pasan a espacios).
+     * Personalizados: el nombre real del archivo importado, sin la extensión y tal cual.
+     */
     val label: String
-        get() = fileName.substringAfterLast('/').substringBeforeLast('.').replace('_', ' ')
+        get() {
+            val base = fileName.substringAfterLast('/').substringBeforeLast('.')
+            return if (isCustom) base else base.replace('_', ' ')
+        }
 }
 
 /**

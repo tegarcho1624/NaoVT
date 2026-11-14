@@ -15,6 +15,9 @@ sealed interface ImportResult {
     data class Success(val fileName: String, val stretched: Boolean) : ImportResult
     data object Invalid : ImportResult
     data object Failed : ImportResult
+
+    /** No se pudo conocer el nombre real de la imagen (la galería solo da un número): hay que pedirlo. */
+    data object NeedsName : ImportResult
 }
 
 /**
@@ -52,8 +55,11 @@ class CustomAssetStore(context: Context) {
 
     /**
      * Copia la imagen elegida a la carpeta de [slot] y la registra. Solo acepta PNG y JPEG válidos.
+     *
+     * El asset se llama como el archivo original (sin la extensión .png/.jpg). Si la galería no
+     * entrega un nombre real y no se da [name], devuelve [ImportResult.NeedsName] sin copiar nada.
      */
-    fun import(slot: WardrobeSlot, uri: Uri): ImportResult {
+    fun import(slot: WardrobeSlot, uri: Uri, name: String? = null): ImportResult {
         val resolver = appContext.contentResolver
         return try {
             val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
@@ -67,8 +73,11 @@ class CustomAssetStore(context: Context) {
             }
             if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return ImportResult.Invalid
 
+            val chosenName = name?.let { stripExtension(it).trim() }?.takeIf { it.isNotEmpty() }
+                ?: realName(uri)
+                ?: return ImportResult.NeedsName
             val dir = directory(slot).apply { mkdirs() }
-            val target = uniqueFile(dir, safeBaseName(displayName(uri)), extension)
+            val target = uniqueFile(dir, safeBaseName(chosenName), extension)
             try {
                 resolver.openInputStream(uri)?.use { input ->
                     target.outputStream().use { output -> input.copyTo(output) }
@@ -94,18 +103,45 @@ class CustomAssetStore(context: Context) {
         writeList(orderKey(slot), readList(orderKey(slot)) - "$CUSTOM_ID_PREFIX$fileName")
     }
 
-    private fun displayName(uri: Uri): String? = try {
-        appContext.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+    /**
+     * Nombre real del archivo elegido, sin extensión, o null si no se pudo conocer. La galería a veces
+     * entrega solo un número (por ejemplo `1000064685.png`); en ese caso se prueban otras fuentes
+     * (título de la imagen, última parte de la dirección) y, si todo es un número, se devuelve null.
+     */
+    private fun realName(uri: Uri): String? {
+        val candidates = listOf(
+            queryString(uri, OpenableColumns.DISPLAY_NAME),
+            queryString(uri, TITLE_COLUMN),
+            uri.lastPathSegment?.substringAfterLast('/')?.substringAfterLast(':'),
+        )
+        return candidates.firstNotNullOfOrNull { candidate ->
+            candidate?.let { stripExtension(it).trim() }?.takeIf { isRealName(it) }
+        }
+    }
+
+    private fun queryString(uri: Uri, column: String): String? = try {
+        appContext.contentResolver.query(uri, arrayOf(column), null, null, null)
             ?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
     } catch (e: Exception) {
         null
     }
 
-    /** Nombre seguro para un archivo: solo letras, números, guiones y guion bajo. */
-    private fun safeBaseName(displayName: String?): String {
-        val base = displayName.orEmpty().substringBeforeLast('.')
-            .replace(Regex("[^A-Za-z0-9_-]+"), "_")
-            .trim('_')
+    /** Un nombre real tiene algo más que números (los números solos son el ID de la galería). */
+    private fun isRealName(name: String) = name.isNotBlank() && !name.all { it.isDigit() }
+
+    /** Quita la extensión .png, .jpg o .jpeg (sin importar mayúsculas). */
+    private fun stripExtension(name: String): String =
+        name.replace(Regex("\\.(png|jpe?g)$", RegexOption.IGNORE_CASE), "")
+
+    /**
+     * Nombre seguro para un archivo: conserva letras (con acentos), números, espacios, guiones y guion
+     * bajo, y quita lo que el sistema de archivos no permite.
+     */
+    private fun safeBaseName(name: String): String {
+        val base = name
+            .replace(Regex("[\\\\/:*?\"<>|\\p{Cntrl}]+"), "_")
+            .replace(Regex("\\s+"), " ")
+            .trim(' ', '_', '.')
             .take(MAX_NAME_LENGTH)
         return base.ifEmpty { "imagen" }
     }
@@ -138,7 +174,8 @@ class CustomAssetStore(context: Context) {
     private companion object {
         const val TAG = "CustomAssetStore"
         const val PREFS_NAME = "naovt_wardrobe_items"
-        const val MAX_NAME_LENGTH = 40
+        const val MAX_NAME_LENGTH = 60
+        const val TITLE_COLUMN = "title"
         const val LAYER_RATIO = 1024f / 1536f
         const val RATIO_TOLERANCE = 0.01f
     }

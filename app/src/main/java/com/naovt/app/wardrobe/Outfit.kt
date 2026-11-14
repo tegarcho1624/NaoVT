@@ -1,6 +1,8 @@
 package com.naovt.app.wardrobe
 
 import android.content.Context
+import com.naovt.app.gestures.CharacterGestures
+import com.naovt.app.gestures.GestureSettings
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -10,12 +12,15 @@ import org.json.JSONObject
  * - [selection]: archivo equipado en cada ranura (null = vacía), con los mismos identificadores que
  *   [CharacterConfig] (los personalizados llevan el prefijo `custom/`).
  * - [order]: orden de dibujo de las capas, de atrás hacia adelante.
+ * - [gestures]: gestos propios de este outfit (pestañeo, hablar, beso). Si es null, Nao usa los
+ *   globales del Menú de Gestos.
  */
 data class Outfit(
     val id: String,
     val name: String,
     val selection: Map<WardrobeSlot, String?>,
     val order: List<WardrobeSlot>,
+    val gestures: CharacterGestures? = null,
 )
 
 /** Lista de outfits guardados como JSON en SharedPreferences. */
@@ -49,6 +54,7 @@ class OutfitStore(context: Context) {
         .put("id", outfit.id)
         .put("name", outfit.name)
         .put("order", JSONArray(outfit.order.map { it.name }))
+        .apply { outfit.gestures?.let { put("gestures", it.toJson()) } }
         .put(
             "items",
             JSONObject().apply {
@@ -72,6 +78,7 @@ class OutfitStore(context: Context) {
             name = json.getString("name"),
             selection = selection,
             order = order,
+            gestures = json.optJSONObject("gestures")?.let { GestureSettings.fromJson(it) },
         )
     }
 

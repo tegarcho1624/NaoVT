@@ -69,7 +69,7 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import com.naovt.app.ui.avatar.NaoLayeredAvatar
-import com.naovt.app.gestures.GesturesViewModel
+import com.naovt.app.gestures.rememberEffectiveGestures
 import com.naovt.app.wardrobe.WardrobeViewModel
 import com.naovt.app.ui.avatar.rememberBlink
 import com.naovt.app.ui.avatar.rememberTalkingMouth
@@ -108,8 +108,8 @@ fun NaoScreen(
     val activeRoom = roomsViewModel.activa
     // Atuendo de Nao (compartido con el Armario: no se pierde al cambiar de pantalla).
     val wardrobeViewModel: WardrobeViewModel = viewModel()
-    // Ojos, boca y tiempos de los gestos (Menú de Gestos).
-    val gesturesViewModel: GesturesViewModel = viewModel()
+    // Ojos, boca y tiempos de los gestos: los del outfit puesto o, si no tiene, los globales.
+    val gestures = rememberEffectiveGestures()
     var tapCount by remember { mutableIntStateOf(0) }
     var expression by remember { mutableStateOf(NaoExpression.Neutral) }
     var lastPhrase by remember { mutableStateOf<String?>(null) }
@@ -201,7 +201,7 @@ fun NaoScreen(
 
         NaoLayeredAvatar(
             config = wardrobeViewModel.config,
-            gestures = gesturesViewModel.settings,
+            gestures = gestures,
             expression = shownExpression,
             mouthOverride = talkingMouth,
             isSpeaking = voice.isSpeaking,

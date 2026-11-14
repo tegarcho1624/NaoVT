@@ -8,8 +8,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.naovt.app.gestures.GesturesViewModel
+import com.naovt.app.gestures.rememberEffectiveGestures
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.delay
@@ -35,8 +34,8 @@ private const val WAIT_MAX_FACTOR = 4f / 3f
 fun rememberBlink(canBlink: Boolean): Boolean {
     var eyesClosed by remember { mutableStateOf(false) }
     val currentCanBlink by rememberUpdatedState(canBlink)
-    val gestures: GesturesViewModel = viewModel()
-    val currentSettings by rememberUpdatedState(gestures.settings)
+    // Gestos del outfit puesto, o los globales si no tiene propios.
+    val currentSettings by rememberUpdatedState(rememberEffectiveGestures())
     val lifecycleOwner = LocalLifecycleOwner.current
 
     LaunchedEffect(lifecycleOwner) {

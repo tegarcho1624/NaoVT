@@ -1,6 +1,5 @@
 package com.naovt.app.ui.gestures
 
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
 import androidx.compose.foundation.Image
@@ -10,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
@@ -69,6 +70,8 @@ import com.naovt.app.R
 import com.naovt.app.gestures.GestureGroup
 import com.naovt.app.gestures.GestureSettings
 import com.naovt.app.gestures.GesturesViewModel
+import com.naovt.app.ui.wardrobe.OutfitPreviewImage
+import com.naovt.app.wardrobe.Outfit
 import com.naovt.app.wardrobe.WardrobeBitmaps
 import com.naovt.app.wardrobe.WardrobeItem
 import com.naovt.app.wardrobe.WardrobeSlot
@@ -86,9 +89,23 @@ private enum class GestureSection(
 }
 
 /**
+ * Lo que editan las secciones Pestañeo / Hablar / Beso: los valores actuales, cómo cambiarlos y cómo
+ * restablecer un grupo. Hay uno para los gestos globales y otro para los de un outfit concreto, así
+ * la misma interfaz sirve para los dos.
+ */
+private class GestureEditor(
+    val settings: GestureSettings,
+    val update: ((GestureSettings) -> GestureSettings) -> Unit,
+    val reset: (GestureGroup) -> Unit,
+)
+
+/**
  * Menú de Gestos: una lista con los gestos de Nao y, dentro de cada uno, la edición de sus ojos,
  * su boca y (en el pestañeo) frecuencia y duración. Todo se guarda al instante y se aplica sin
  * reiniciar: el siguiente parpadeo, frase o beso ya usa lo nuevo.
+ *
+ * "Gestos de Conjuntos" abre una cuadrícula con los outfits guardados; al tocar uno se edita lo mismo,
+ * pero solo para ese outfit.
  */
 @Composable
 fun GesturesScreen(
@@ -98,17 +115,56 @@ fun GesturesScreen(
     wardrobeViewModel: WardrobeViewModel = viewModel(),
 ) {
     var sectionName by rememberSaveable { mutableStateOf<String?>(null) }
+    var outfitsOpen by rememberSaveable { mutableStateOf(false) }
+    var outfitId by rememberSaveable { mutableStateOf<String?>(null) }
+
     val section = GestureSection.entries.firstOrNull { it.name == sectionName }
-    val context = LocalContext.current
+    val outfit = outfitId?.let { id -> wardrobeViewModel.outfits.firstOrNull { it.id == id } }
+    // Si el outfit se eliminó mientras estaba abierto, se vuelve a la cuadrícula.
+    if (outfitId != null && outfit == null) outfitId = null
+
+    val atRoot = !outfitsOpen && section == null
     val goBack: () -> Unit = {
-        if (section != null) {
-            sectionName = null
-        } else {
-            onClose()
+        when {
+            section != null -> sectionName = null
+            outfit != null -> outfitId = null
+            outfitsOpen -> outfitsOpen = false
+            else -> onClose()
         }
     }
 
     BackHandler(onBack = goBack)
+
+    val editor: GestureEditor = if (outfit == null) {
+        GestureEditor(
+            settings = gesturesViewModel.settings,
+            update = { transform -> gesturesViewModel.update(transform) },
+            reset = { group -> gesturesViewModel.reset(group) },
+        )
+    } else {
+        // Un outfit sin gestos propios parte de los globales: al primer cambio se guarda su copia.
+        val current = outfit.gestures ?: gesturesViewModel.settings
+        GestureEditor(
+            settings = current,
+            update = { transform ->
+                val latest = wardrobeViewModel.outfits.firstOrNull { it.id == outfit.id }
+                    ?.let { it.gestures ?: gesturesViewModel.settings } ?: current
+                wardrobeViewModel.setOutfitGestures(outfit.id, transform(latest))
+            },
+            reset = { group ->
+                val latest = wardrobeViewModel.outfits.firstOrNull { it.id == outfit.id }
+                    ?.let { it.gestures ?: gesturesViewModel.settings } ?: current
+                wardrobeViewModel.setOutfitGestures(outfit.id, latest.withDefaults(group))
+            },
+        )
+    }
+
+    val titleText = when {
+        section != null -> stringResource(section.title)
+        outfit != null -> outfit.name
+        outfitsOpen -> stringResource(R.string.gestures_outfits)
+        else -> stringResource(R.string.gestures_title)
+    }
 
     Surface(
         modifier = modifier
@@ -124,34 +180,47 @@ fun GesturesScreen(
             ) {
                 IconButton(onClick = goBack) {
                     Icon(
-                        if (section != null) Icons.AutoMirrored.Filled.ArrowBack else Icons.Default.Close,
+                        if (atRoot) Icons.Default.Close else Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = stringResource(R.string.gestures_back),
                     )
                 }
                 Text(
-                    text = stringResource(section?.title ?: R.string.gestures_title),
+                    text = titleText,
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onBackground,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                when (section) {
-                    null -> {
-                        MenuCard(
-                            title = stringResource(R.string.gestures_outfits),
-                            description = stringResource(R.string.gestures_outfits_desc),
-                            onClick = {
-                                Toast.makeText(context, R.string.gestures_coming_soon, Toast.LENGTH_SHORT).show()
-                            },
-                        )
+            if (outfitsOpen && outfit == null) {
+                OutfitGrid(
+                    wardrobe = wardrobeViewModel,
+                    onPick = { outfitId = it.id },
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                )
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    if (section == null) {
+                        if (outfit == null) {
+                            MenuCard(
+                                title = stringResource(R.string.gestures_outfits),
+                                description = stringResource(R.string.gestures_outfits_desc),
+                                onClick = { outfitsOpen = true },
+                            )
+                        } else {
+                            OutfitGestureStatus(
+                                hasOwn = outfit.gestures != null,
+                                onUseGlobal = { wardrobeViewModel.setOutfitGestures(outfit.id, null) },
+                            )
+                        }
                         GestureSection.entries.forEach { entry ->
                             MenuCard(
                                 title = stringResource(entry.title),
@@ -159,19 +228,122 @@ fun GesturesScreen(
                                 onClick = { sectionName = entry.name },
                             )
                         }
+                    } else {
+                        when (section) {
+                            GestureSection.Blink -> BlinkSection(editor, wardrobeViewModel)
+                            GestureSection.Talk -> TalkSection(editor, wardrobeViewModel)
+                            GestureSection.Kiss -> KissSection(editor, wardrobeViewModel)
+                        }
+                        TextButton(
+                            onClick = { editor.reset(section.group) },
+                            modifier = Modifier.align(Alignment.End),
+                        ) { Text(stringResource(R.string.gestures_reset)) }
                     }
-
-                    GestureSection.Blink -> BlinkSection(gesturesViewModel, wardrobeViewModel)
-                    GestureSection.Talk -> TalkSection(gesturesViewModel, wardrobeViewModel)
-                    GestureSection.Kiss -> KissSection(gesturesViewModel, wardrobeViewModel)
                 }
+            }
+        }
+    }
+}
 
-                if (section != null) {
-                    TextButton(
-                        onClick = { gesturesViewModel.reset(section.group) },
-                        modifier = Modifier.align(Alignment.End),
-                    ) { Text(stringResource(R.string.gestures_reset)) }
-                }
+/** Cuadrícula de 2 columnas con los outfits: 4 a la vez (2x2) y el resto con scroll. */
+@Composable
+private fun OutfitGrid(
+    wardrobe: WardrobeViewModel,
+    onPick: (Outfit) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val outfits = wardrobe.outfits
+    if (outfits.isEmpty()) {
+        Box(modifier = modifier.padding(32.dp), contentAlignment = Alignment.Center) {
+            Text(
+                text = stringResource(R.string.gestures_outfits_empty),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                textAlign = TextAlign.Center,
+            )
+        }
+        return
+    }
+    BoxWithConstraints(modifier = modifier) {
+        val padding = 16.dp
+        val gap = 12.dp
+        // Alto de cada celda para que quepan exactamente 2 filas en pantalla.
+        val cellHeight = ((maxHeight - padding * 2 - gap) / 2).coerceAtLeast(120.dp)
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(2),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(padding),
+            horizontalArrangement = Arrangement.spacedBy(gap),
+            verticalArrangement = Arrangement.spacedBy(gap),
+        ) {
+            items(outfits, key = { it.id }) { outfit ->
+                OutfitGridCell(outfit, wardrobe, Modifier.height(cellHeight), onClick = { onPick(outfit) })
+            }
+        }
+    }
+}
+
+@Composable
+private fun OutfitGridCell(
+    outfit: Outfit,
+    wardrobe: WardrobeViewModel,
+    modifier: Modifier,
+    onClick: () -> Unit,
+) {
+    val shape = RoundedCornerShape(16.dp)
+    Column(
+        modifier = modifier
+            .clip(shape)
+            .background(MaterialTheme.colorScheme.surface)
+            .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f), shape)
+            .clickable(onClick = onClick)
+            .padding(8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+            OutfitPreviewImage(outfit, wardrobe, Modifier.fillMaxSize())
+            if (outfit.gestures != null) {
+                Icon(
+                    Icons.Default.Check,
+                    contentDescription = stringResource(R.string.gestures_outfit_custom),
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .size(20.dp)
+                        .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp))
+                        .padding(3.dp),
+                )
+            }
+        }
+        Text(
+            text = outfit.name,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = 6.dp),
+        )
+    }
+}
+
+/** Aviso en la página de un outfit: si usa gestos propios o los globales, y cómo volver a los globales. */
+@Composable
+private fun OutfitGestureStatus(hasOwn: Boolean, onUseGlobal: () -> Unit) {
+    Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(
+                    if (hasOwn) R.string.gestures_outfit_own else R.string.gestures_outfit_global,
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                modifier = Modifier.weight(1f),
+            )
+            if (hasOwn) {
+                TextButton(onClick = onUseGlobal) { Text(stringResource(R.string.gestures_outfit_use_global)) }
             }
         }
     }
@@ -210,7 +382,7 @@ private fun MenuCard(title: String, description: String, onClick: () -> Unit) {
 }
 
 @Composable
-private fun BlinkSection(vm: GesturesViewModel, wardrobe: WardrobeViewModel) {
+private fun BlinkSection(vm: GestureEditor, wardrobe: WardrobeViewModel) {
     val s = vm.settings
     AssetSelectorRow(R.string.gestures_eyes, R.string.gestures_pick_eyes, WardrobeSlot.Eyes, s.blinkEyes, wardrobe) { id ->
         vm.update { it.copy(blinkEyes = id) }
@@ -238,7 +410,7 @@ private fun BlinkSection(vm: GesturesViewModel, wardrobe: WardrobeViewModel) {
 }
 
 @Composable
-private fun TalkSection(vm: GesturesViewModel, wardrobe: WardrobeViewModel) {
+private fun TalkSection(vm: GestureEditor, wardrobe: WardrobeViewModel) {
     val s = vm.settings
     AssetSelectorRow(R.string.gestures_eyes, R.string.gestures_pick_eyes, WardrobeSlot.Eyes, s.talkEyes, wardrobe) { id ->
         vm.update { it.copy(talkEyes = id) }
@@ -255,7 +427,7 @@ private fun TalkSection(vm: GesturesViewModel, wardrobe: WardrobeViewModel) {
 }
 
 @Composable
-private fun KissSection(vm: GesturesViewModel, wardrobe: WardrobeViewModel) {
+private fun KissSection(vm: GestureEditor, wardrobe: WardrobeViewModel) {
     val s = vm.settings
     AssetSelectorRow(R.string.gestures_eyes, R.string.gestures_pick_eyes, WardrobeSlot.Eyes, s.kissEyes, wardrobe) { id ->
         vm.update { it.copy(kissEyes = id) }

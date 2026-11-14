@@ -123,19 +123,32 @@ object WardrobeBitmaps {
                 ready
             } else {
                 withContext(Dispatchers.IO) {
-                    val width = LAYER_WIDTH / PREVIEW_SAMPLE
-                    val height = LAYER_HEIGHT / PREVIEW_SAMPLE
-                    val result = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-                    val canvas = Canvas(result)
-                    for (path in layerPaths) {
-                        val layer = decode(context, path, PREVIEW_SAMPLE) ?: continue
-                        canvas.drawBitmap(layer, Rect(0, 0, layer.width, layer.height), Rect(0, 0, width, height), null)
-                        layer.recycle()
-                    }
-                    result.asImageBitmap().also { previewCache.put(key, it) }
+                    composite(context, layerPaths, PREVIEW_SAMPLE).asImageBitmap()
+                        .also { previewCache.put(key, it) }
                 }
             }
         }
+    }
+
+    /**
+     * Imagen estática de un atuendo completo para guardarla: las capas [layerPaths] apiladas a
+     * 1/[sampleSize] de resolución (por defecto 512x768), con fondo transparente. No usa la caché.
+     */
+    suspend fun renderOutfitImage(context: Context, layerPaths: List<String>, sampleSize: Int = 2): Bitmap =
+        thumbLock.withLock { withContext(Dispatchers.IO) { composite(context, layerPaths, sampleSize) } }
+
+    /** Apila las capas en un lienzo de 1024x1536 reducido a 1/[sampleSize]. Las ilegibles se omiten. */
+    private fun composite(context: Context, layerPaths: List<String>, sampleSize: Int): Bitmap {
+        val width = LAYER_WIDTH / sampleSize
+        val height = LAYER_HEIGHT / sampleSize
+        val result = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(result)
+        for (path in layerPaths) {
+            val layer = decode(context, path, sampleSize) ?: continue
+            canvas.drawBitmap(layer, Rect(0, 0, layer.width, layer.height), Rect(0, 0, width, height), null)
+            layer.recycle()
+        }
+        return result
     }
 
     /** Los personalizados viven en filesDir; los nativos, en assets/. */
