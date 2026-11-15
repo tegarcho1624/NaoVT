@@ -5,6 +5,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import com.llamatik.core.platform.LlamaBridge
+import com.naovt.app.personality.PersonalityStore
 import java.util.concurrent.Executors
 
 /** Resultado de cargar el modelo. */
@@ -87,7 +88,8 @@ class NaoLLMRepository private constructor(context: Context) {
             }
             try {
                 LlamaBridge.generateWithContextStream(
-                    system = SYSTEM_PROMPT,
+                    // Personalidad y nombre del usuario (Menú de Personalidad), o los de por defecto.
+                    system = PersonalityStore.systemPrompt(appContext),
                     context = contexto,
                     user = prompt,
                     onDelta = { token -> mainHandler.post { onToken(token) } },
@@ -149,13 +151,7 @@ class NaoLLMRepository private constructor(context: Context) {
         /** Tiempo sin uso tras el cual se libera la memoria del modelo. */
         private const val IDLE_UNLOAD_MS = 3 * 60_000L
 
-        /** Personalidad de Nao. Corta a propósito: va más rápido y se lee mejor en voz alta. */
-        private const val SYSTEM_PROMPT =
-            "Eres Nao, una mascota virtual cariñosa y juguetona que vive en el dispositivo de tu persona favorita. " +
-                "Respondes siempre en español, con frases cortas y naturales (máximo 3 frases), " +
-                "sin listas, sin emojis y sin formato especial. " +
-                "Hablas con ternura y cercanía; si te cuentan algo difícil, primero consuelas. " +
-                "No finjas ser una persona real. Responde solo como Nao, sin escribir lo que diría el usuario."
+        // La personalidad (System Prompt) sale de PersonalityStore: ver el Menú de Personalidad.
 
         @Volatile
         private var instance: NaoLLMRepository? = null

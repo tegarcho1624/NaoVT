@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import com.naovt.app.R
 import com.naovt.app.ui.avatar.NaoExpression
 import com.naovt.app.ui.avatar.NaoHeadBadge
+import com.naovt.app.ui.icons.HeartOutlineIcon
 import com.naovt.app.ui.icons.MoonIcon
 import com.naovt.app.ui.icons.TouchAppIcon
 
@@ -56,6 +57,7 @@ fun NaoDrawerContent(
     onPomodoro: () -> Unit,
     onVoiceSettings: () -> Unit,
     onGestures: () -> Unit,
+    onPersonality: () -> Unit,
     onChangeRoom: () -> Unit,
     onVault: () -> Unit,
     onWardrobe: () -> Unit,
@@ -95,6 +97,7 @@ fun NaoDrawerContent(
             DrawerItem(Icons.Default.Star, stringResource(R.string.pomodoro_button), onPomodoro, afterClick)
             DrawerItem(Icons.Default.Settings, stringResource(R.string.voice_settings_button), onVoiceSettings, afterClick)
             DrawerItem(TouchAppIcon, stringResource(R.string.gestures_button), onGestures, afterClick)
+            DrawerItem(HeartOutlineIcon, stringResource(R.string.personality_button), onPersonality, afterClick)
             DrawerItem(Icons.Default.Home, stringResource(R.string.change_room), onChangeRoom, afterClick)
             DrawerItem(Icons.Default.Person, stringResource(R.string.wardrobe_button), onWardrobe, afterClick)
             DrawerItem(Icons.Default.Favorite, stringResource(R.string.vault_button), onVault, afterClick)

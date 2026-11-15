@@ -7,6 +7,16 @@
     <string name="voice_engine_failed">No se pudo iniciar el motor de texto a voz.</string>
 
     <!-- Baúl de Recuerdos -->
+    <string name="personality_button">Personalidad</string>
+    <string name="personality_title">Personalidad y Memoria</string>
+    <string name="personality_close">Cerrar Personalidad</string>
+    <string name="personality_name_label">Mi nombre</string>
+    <string name="personality_name_hint">Cómo quieres que te llame Nao</string>
+    <string name="personality_text_label">Personalidad de Nao</string>
+    <string name="personality_text_hint">Ej.: Eres Nao, una chica cariñosa, un poco tsundere, te gusta el color azul y te preocupas por mí.</string>
+    <string name="personality_empty_note">Si dejas la personalidad vacía, Nao será una mascota amigable y cariñosa; si dejas tu nombre vacío, te llamará «usuario». Vale desde el siguiente mensaje.</string>
+    <string name="personality_save">Guardar Personalidad</string>
+    <string name="personality_saved">Personalidad guardada</string>
     <string name="vault_button">Baúl de Recuerdos</string>
     <string name="sleep_button">Dormir</string>
     <string name="vault_title">Baúl de Recuerdos</string>
