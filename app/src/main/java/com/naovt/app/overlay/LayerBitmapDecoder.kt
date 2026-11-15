@@ -6,8 +6,8 @@ import android.graphics.BitmapFactory
 import androidx.annotation.DrawableRes
 
 /**
- * Decodifica las capas PNG (1024x1536) a un tamaño reducido para la burbuja,
- * así el overlay usa poca memoria en vez de cargar las imágenes completas.
+ * Decodifica un PNG de los recursos (res/drawable) a un tamaño reducido.
+ * Ya no lo usa Nao flotante (ahora usa las capas del Armario); lo usa la cara de las alertas.
  */
 internal object LayerBitmapDecoder {
 

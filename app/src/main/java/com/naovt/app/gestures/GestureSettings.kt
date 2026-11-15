@@ -2,6 +2,7 @@ package com.naovt.app.gestures
 
 import android.app.Application
 import android.content.Context
+import android.content.SharedPreferences
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -134,25 +135,7 @@ class GesturesViewModel(application: Application) : AndroidViewModel(application
         update { it.withDefaults(group) }
     }
 
-    private fun load(): GestureSettings {
-        val d = GestureSettings()
-        return GestureSettings(
-            blinkEyes = readAsset(K_BLINK_EYES, d.blinkEyes),
-            blinkMouth = readAsset(K_BLINK_MOUTH, d.blinkMouth),
-            blinkIntervalSec = prefs.getFloat(K_BLINK_INTERVAL, d.blinkIntervalSec),
-            blinkDurationSec = prefs.getFloat(K_BLINK_DURATION, d.blinkDurationSec),
-            talkEyes = readAsset(K_TALK_EYES, d.talkEyes),
-            talkMouth = readAsset(K_TALK_MOUTH, d.talkMouth),
-            kissEyes = readAsset(K_KISS_EYES, d.kissEyes),
-            kissMouth = readAsset(K_KISS_MOUTH, d.kissMouth),
-            sleepEyes = readAsset(K_SLEEP_EYES, d.sleepEyes),
-            sleepMouth = readAsset(K_SLEEP_MOUTH, d.sleepMouth),
-        ).clamped()
-    }
-
-    /** Sin valor guardado = el de siempre; "" guardado = "no cambiar" (null) a propósito. */
-    private fun readAsset(key: String, default: String?): String? =
-        if (!prefs.contains(key)) default else prefs.getString(key, "")?.ifEmpty { null }
+    private fun load(): GestureSettings = load(prefs)
 
     private fun save(s: GestureSettings) {
         prefs.edit()
@@ -169,8 +152,32 @@ class GesturesViewModel(application: Application) : AndroidViewModel(application
             .apply()
     }
 
-    private companion object {
+    companion object {
         const val PREFS_NAME = "naovt_gestures"
+
+        /** Los gestos globales guardados; también los lee Nao flotante (el Servicio no tiene ViewModels). */
+        fun load(context: Context): GestureSettings =
+            load(context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE))
+
+        private fun load(prefs: SharedPreferences): GestureSettings {
+            val d = GestureSettings()
+            // Sin valor guardado = el de siempre; "" guardado = "no cambiar" (null) a propósito.
+            fun asset(key: String, default: String?): String? =
+                if (!prefs.contains(key)) default else prefs.getString(key, "")?.ifEmpty { null }
+            return GestureSettings(
+                blinkEyes = asset(K_BLINK_EYES, d.blinkEyes),
+                blinkMouth = asset(K_BLINK_MOUTH, d.blinkMouth),
+                blinkIntervalSec = prefs.getFloat(K_BLINK_INTERVAL, d.blinkIntervalSec),
+                blinkDurationSec = prefs.getFloat(K_BLINK_DURATION, d.blinkDurationSec),
+                talkEyes = asset(K_TALK_EYES, d.talkEyes),
+                talkMouth = asset(K_TALK_MOUTH, d.talkMouth),
+                kissEyes = asset(K_KISS_EYES, d.kissEyes),
+                kissMouth = asset(K_KISS_MOUTH, d.kissMouth),
+                sleepEyes = asset(K_SLEEP_EYES, d.sleepEyes),
+                sleepMouth = asset(K_SLEEP_MOUTH, d.sleepMouth),
+            ).clamped()
+        }
+
         const val K_BLINK_EYES = "blink_eyes"
         const val K_BLINK_MOUTH = "blink_mouth"
         const val K_BLINK_INTERVAL = "blink_interval_sec"

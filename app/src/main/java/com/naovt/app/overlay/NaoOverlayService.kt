@@ -3,6 +3,7 @@ package com.naovt.app.overlay
 import android.app.Service
 import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.SharedPreferences
 import android.content.IntentFilter
 import android.content.Intent
 import android.content.res.Configuration
@@ -31,6 +32,7 @@ import kotlin.math.roundToInt
 import com.naovt.app.MainActivity
 import com.naovt.app.R
 import com.naovt.app.data.PhraseRepository
+import com.naovt.app.gestures.GestureSettings
 import com.naovt.app.llm.SpokenAnswerer
 import com.naovt.app.voice.NaoVoice
 import com.naovt.app.voice.VoicePreferences
@@ -77,6 +79,22 @@ class NaoOverlayService : Service() {
     // Menú radial (mantener presionado a Nao).
     private var menuView: RadialMenuView? = null
     private val closeMenuRunnable = Runnable { closeMenu() }
+
+    // Gestos vigentes (los del outfit puesto o los globales): tiempos del pestañeo.
+    private var gestures = GestureSettings()
+
+    // Cuando la app cambia la ropa, el outfit o los gestos, Nao flotante se actualiza en vivo.
+    private val lookListener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
+        handler.removeCallbacks(refreshLook)
+        handler.postDelayed(refreshLook, LOOK_REFRESH_DELAY_MS)
+    }
+    private val watchedPrefs = mutableListOf<SharedPreferences>()
+    private val refreshLook = Runnable {
+        val view = overlay ?: return@Runnable
+        val look = runCatching { OverlayLookLoader.load(this) }.getOrNull() ?: return@Runnable
+        gestures = look.gestures
+        view.setLook(look)
+    }
 
     // Cariño activo (no se parpadea mientras dura).
     private var lovedActive = false
@@ -148,6 +166,8 @@ class NaoOverlayService : Service() {
 
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
+        watchedPrefs.forEach { it.unregisterOnSharedPreferenceChangeListener(lookListener) }
+        watchedPrefs.clear()
         closeMenu()
         closeTextPanel()
         answererInstance?.cancel()
@@ -180,8 +200,17 @@ class NaoOverlayService : Service() {
         widthPx = (savedWidthDp * resources.displayMetrics.density).coerceIn(minWidthPx, maxWidthPx)
         overlaySize = Point(widthPx.roundToInt(), (widthPx * LAYER_ASPECT).roundToInt())
 
+        val look = try {
+            OverlayLookLoader.load(this)
+        } catch (e: Exception) {
+            Log.e(TAG, "No se pudo leer el aspecto de Nao", e)
+            fail(R.string.overlay_failed)
+            return
+        }
+        gestures = look.gestures
+
         val view = try {
-            NaoOverlayView(this, overlaySize.y)
+            NaoOverlayView(this, overlaySize.y, look)
         } catch (e: Exception) {
             Log.e(TAG, "No se pudo crear la vista flotante", e)
             fail(R.string.overlay_failed)
@@ -235,8 +264,19 @@ class NaoOverlayService : Service() {
 
         overlay = view
         layoutParams = params
+        watchLook()
         moveTo(params.x, params.y) // por si la posición guardada quedó fuera de pantalla
         startBlinking()
+    }
+
+    /** Escucha los cambios de Armario, outfits y gestos hechos en la app principal. */
+    private fun watchLook() {
+        if (watchedPrefs.isNotEmpty()) return
+        for (name in OverlayLookLoader.WATCHED_PREFS) {
+            val prefs = getSharedPreferences(name, Context.MODE_PRIVATE)
+            prefs.registerOnSharedPreferenceChangeListener(lookListener)
+            watchedPrefs += prefs
+        }
     }
 
     private fun moveTo(x: Int, y: Int) {
@@ -322,7 +362,7 @@ class NaoOverlayService : Service() {
         // Solo parpadea en estado base: sin cariño y sin hablar.
         if (!lovedActive && voice?.isSpeaking != true) {
             view.setBlinking(true)
-            handler.postDelayed(openEyes, BLINK_DURATION_MS)
+            handler.postDelayed(openEyes, (gestures.blinkDurationSec * 1000).toLong())
         }
         scheduleBlink()
     }
@@ -345,7 +385,10 @@ class NaoOverlayService : Service() {
 
     private fun scheduleBlink() {
         handler.removeCallbacks(blinkTick)
-        handler.postDelayed(blinkTick, Random.nextLong(BLINK_MIN_WAIT_MS, BLINK_MAX_WAIT_MS))
+        // Frecuencia del Menú de Gestos: es el promedio; la espera real varía entre 2/3 y 4/3 de ese valor.
+        val average = (gestures.blinkIntervalSec * 1000).toLong()
+        val wait = Random.nextLong(average * 2 / 3, average * 4 / 3 + 1)
+        handler.postDelayed(blinkTick, wait)
     }
 
     private fun stopBlinking() {
@@ -679,11 +722,9 @@ class NaoOverlayService : Service() {
         /** false = Nao flotante muda (solo cara de beso). */
         private const val OVERLAY_SPEAKS = true
 
-        /** false = Nao flotante no parpadea. */
+        /** false = Nao flotante no parpadea. Los tiempos salen del Menú de Gestos. */
         private const val OVERLAY_BLINKS = true
-        private const val BLINK_MIN_WAIT_MS = 3000L
-        private const val BLINK_MAX_WAIT_MS = 6000L
-        private const val BLINK_DURATION_MS = 150L
+        private const val LOOK_REFRESH_DELAY_MS = 200L
 
         // Menú radial
         private const val MENU_BUTTON_DP = 52

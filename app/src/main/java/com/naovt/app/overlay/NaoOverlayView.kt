@@ -2,7 +2,6 @@ package com.naovt.app.overlay
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.graphics.Bitmap
 import android.graphics.Point
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
@@ -11,14 +10,26 @@ import android.view.ViewConfiguration
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageView
+import androidx.compose.ui.graphics.asAndroidBitmap
 import com.naovt.app.R
+import com.naovt.app.wardrobe.CharacterConfig
+import com.naovt.app.wardrobe.WardrobeBitmaps
+import com.naovt.app.wardrobe.WardrobeSlot
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import kotlin.math.hypot
 
 private const val MATCH_PARENT_PX = ViewGroup.LayoutParams.MATCH_PARENT
 
 /**
- * Nao flotante hecha con las mismas capas PNG del avatar (cuerpo, brazos, pecho, ojos, boca),
- * apiladas en ImageViews. Se usan Views clásicas (no Compose) porque la ventana flotante
+ * Nao flotante hecha con el mismo sistema de capas que la pantalla principal: una ImageView por
+ * ranura del Armario, en el orden de capas elegido, con ojos y boca según los gestos (pestañeo,
+ * hablar, beso) del outfit puesto o los globales. Las imágenes salen de [WardrobeBitmaps], la misma
+ * caché del avatar de la pantalla principal. Se usan Views clásicas (no Compose) porque la ventana flotante
  * vive en un Service, sin Activity.
  *
  * Gestos:
@@ -32,7 +43,11 @@ private const val MATCH_PARENT_PX = ViewGroup.LayoutParams.MATCH_PARENT
  * hasta que se levanten todos los dedos.
  */
 @SuppressLint("ViewConstructor", "ClickableViewAccessibility")
-class NaoOverlayView(context: Context, initialHeightPx: Int) : FrameLayout(context) {
+internal class NaoOverlayView(
+    context: Context,
+    initialHeightPx: Int,
+    initialLook: OverlayLook,
+) : FrameLayout(context) {
 
     // Callbacks que conecta el servicio.
     var onTap: () -> Unit = {}
@@ -44,17 +59,14 @@ class NaoOverlayView(context: Context, initialHeightPx: Int) : FrameLayout(conte
     var onScale: (factor: Float) -> Unit = {}
     var onScaleEnd: () -> Unit = {}
 
-    // Imágenes: se decodifican a la resolución justa y se vuelven a decodificar si el tamaño cambia mucho.
-    private val bitmaps = HashMap<Int, Bitmap>()
-    private val sourceHeight = LayerBitmapDecoder.sourceHeight(resources, R.drawable.nao_base)
-    private var sampleSize = 0
-
-    private val baseLayer = newLayer()
-    private val leftArmLayer = newLayer()
-    private val rightArmLayer = newLayer()
-    private val chestLayer = newLayer()
-    private val eyesLayer = newLayer()
-    private val mouthLayer = newLayer()
+    // Capas: una ImageView por ranura, apiladas según config.order.
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val slotViews = HashMap<WardrobeSlot, ImageView>()
+    private val shownPaths = HashMap<WardrobeSlot, String?>()
+    private val loadJobs = HashMap<WardrobeSlot, Job>()
+    private var config: CharacterConfig = initialLook.config
+    private var gestures = initialLook.gestures
+    private var sampleSize = WardrobeBitmaps.sampleSizeFor(initialHeightPx)
 
     private var loved = false
     private var talkingMouthOpen: Boolean? = null
@@ -100,77 +112,122 @@ class NaoOverlayView(context: Context, initialHeightPx: Int) : FrameLayout(conte
     }
 
     init {
-        updateResolution(initialHeightPx)
         contentDescription = context.getString(R.string.nao_description)
+        rebuildLayers()
     }
 
-    /** Cara de cariño (ojos corazón + boca de beso) activada o desactivada. */
+    /** Cambia la ropa/orden de capas y los gestos (por ejemplo, tras cambiar de outfit en la app). */
+    fun setLook(look: OverlayLook) {
+        val orderChanged = look.config.order != config.order
+        config = look.config
+        gestures = look.gestures
+        if (orderChanged) rebuildLayers() else refreshLayers()
+    }
+
+    /** Cara de cariño (ojos y boca del gesto Beso) activada o desactivada. */
     fun setLoved(value: Boolean) {
         loved = value
-        refreshFace()
+        refreshLayers()
     }
 
-    /** Parpadeo: ojos cerrados un instante (solo se nota si Nao está en estado base). */
+    /** Parpadeo: ojos y boca del gesto Pestañeo (solo se nota si Nao está en estado base). */
     fun setBlinking(value: Boolean) {
         blinking = value
-        refreshFace()
+        refreshLayers()
     }
 
-    /** Hablando: true/false alterna boca abierta/cerrada con ojos normales; null = no está hablando. */
+    /** Hablando: true/false alterna boca abierta/cerrada (gesto Hablar); null = no está hablando. */
     fun setTalkingMouth(open: Boolean?) {
         talkingMouthOpen = open
-        refreshFace()
+        refreshLayers()
     }
 
     /**
-     * Ajusta la calidad de las imágenes al alto actual de la ventana. Solo vuelve a decodificar
-     * si el tamaño cambió lo suficiente; así no se gasta memoria de más cuando Nao es pequeña
-     * ni se ve borrosa cuando es grande.
+     * Ajusta la calidad de las imágenes al alto actual de la ventana. Solo vuelve a cargar
+     * si el tamaño cambió lo suficiente.
      */
     fun updateResolution(targetHeightPx: Int) {
-        val newSampleSize = LayerBitmapDecoder.sampleSizeFor(sourceHeight, targetHeightPx)
+        val newSampleSize = WardrobeBitmaps.sampleSizeFor(targetHeightPx)
         if (newSampleSize == sampleSize) return
         sampleSize = newSampleSize
-
-        for (resId in LAYER_RESOURCES) {
-            bitmaps[resId] = LayerBitmapDecoder.decode(resources, resId, newSampleSize)
-        }
-        baseLayer.setImageBitmap(bitmaps.getValue(R.drawable.nao_base))
-        leftArmLayer.setImageBitmap(bitmaps.getValue(R.drawable.nao_brazo_izquierdo_base))
-        rightArmLayer.setImageBitmap(bitmaps.getValue(R.drawable.nao_brazo_derecho_base))
-        chestLayer.setImageBitmap(bitmaps.getValue(R.drawable.pecho_base))
-        refreshFace()
+        shownPaths.clear()
+        refreshLayers()
     }
 
     /** Suelta las imágenes para liberar memoria. */
     fun release() {
         removeCallbacks(longPressRunnable)
+        scope.cancel()
         removeAllViews()
-        bitmaps.clear()
+        slotViews.clear()
+        shownPaths.clear()
+        loadJobs.clear()
     }
 
-    private fun newLayer(): ImageView =
-        ImageView(context).apply { scaleType = ImageView.ScaleType.FIT_CENTER }
-            .also { addView(it, FrameLayout.LayoutParams(MATCH_PARENT_PX, MATCH_PARENT_PX)) }
+    private fun rebuildLayers() {
+        loadJobs.values.forEach { it.cancel() }
+        loadJobs.clear()
+        removeAllViews()
+        slotViews.clear()
+        shownPaths.clear()
+        for (slot in config.order) {
+            val layer = ImageView(context).apply { scaleType = ImageView.ScaleType.FIT_XY }
+            slotViews[slot] = layer
+            addView(layer, FrameLayout.LayoutParams(MATCH_PARENT_PX, MATCH_PARENT_PX))
+        }
+        refreshLayers()
+    }
 
-    /** Prioridad: cariño > hablando > parpadeo > base (igual que NaoVTAvatar). */
-    private fun refreshFace() {
+    /** Ojos y boca que se ven ahora. Prioridad (igual que la pantalla principal): cariño > hablando > parpadeo > Armario. */
+    private fun shownConfig(): CharacterConfig {
+        val wardrobeEyes = config.fileFor(WardrobeSlot.Eyes)
+        val wardrobeMouth = config.fileFor(WardrobeSlot.Mouth)
         val talking = talkingMouthOpen
-        val eyes: Int
-        val mouth: Int
-        eyes = when {
-            loved -> R.drawable.ojos_corazon_mejilla
-            talking != null -> R.drawable.ojos_base
-            blinking -> R.drawable.ojos_feliz_cerrando
-            else -> R.drawable.ojos_base
+        val eyes = when {
+            loved -> gestures.kissEyes ?: wardrobeEyes
+            talking != null -> gestures.talkEyes ?: wardrobeEyes
+            blinking -> gestures.blinkEyes ?: wardrobeEyes
+            else -> wardrobeEyes
         }
-        mouth = when {
-            talking != null -> if (talking) R.drawable.boca_abierta_feliz else R.drawable.boca_base
-            loved -> R.drawable.boca_besando
-            else -> R.drawable.boca_base
+        val mouth = when {
+            talking != null -> if (talking) gestures.talkMouth ?: wardrobeMouth else wardrobeMouth
+            loved -> gestures.kissMouth ?: wardrobeMouth
+            blinking -> gestures.blinkMouth ?: wardrobeMouth
+            else -> wardrobeMouth
         }
-        bitmaps[eyes]?.let { eyesLayer.setImageBitmap(it) }
-        bitmaps[mouth]?.let { mouthLayer.setImageBitmap(it) }
+        return config.with(WardrobeSlot.Eyes, eyes).with(WardrobeSlot.Mouth, mouth)
+    }
+
+    /** Solo vuelve a cargar las capas cuyo archivo cambió (normalmente solo ojos y boca). */
+    private fun refreshLayers() {
+        val shown = shownConfig()
+        for ((slot, layer) in slotViews) {
+            val path = shown.assetPathFor(slot)
+            if (shownPaths.containsKey(slot) && shownPaths[slot] == path) continue
+            shownPaths[slot] = path
+            showLayer(slot, layer, path, fallbackPath = config.assetPathFor(slot))
+        }
+    }
+
+    private fun showLayer(slot: WardrobeSlot, layer: ImageView, path: String?, fallbackPath: String?) {
+        loadJobs.remove(slot)?.cancel()
+        if (path == null) {
+            layer.setImageBitmap(null)
+            return
+        }
+        val size = sampleSize
+        val cached = WardrobeBitmaps.cachedLayer(path, size)
+        if (cached != null) {
+            layer.setImageBitmap(cached.asAndroidBitmap())
+            return
+        }
+        // La imagen anterior se queda a la vista hasta que la nueva esté lista (sin huecos al parpadear).
+        loadJobs[slot] = scope.launch {
+            // Si el asset de un gesto ya no existe (uno importado y eliminado), se usa el del Armario.
+            val bitmap = WardrobeBitmaps.layer(context, path, size)
+                ?: fallbackPath?.takeIf { it != path }?.let { WardrobeBitmaps.layer(context, it, size) }
+            if (bitmap != null) layer.setImageBitmap(bitmap.asAndroidBitmap())
+        }
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
@@ -242,20 +299,5 @@ class NaoOverlayView(context: Context, initialHeightPx: Int) : FrameLayout(conte
     override fun onDetachedFromWindow() {
         removeCallbacks(longPressRunnable)
         super.onDetachedFromWindow()
-    }
-
-    private companion object {
-        val LAYER_RESOURCES = intArrayOf(
-            R.drawable.nao_base,
-            R.drawable.nao_brazo_izquierdo_base,
-            R.drawable.nao_brazo_derecho_base,
-            R.drawable.pecho_base,
-            R.drawable.ojos_base,
-            R.drawable.ojos_corazon_mejilla,
-            R.drawable.boca_base,
-            R.drawable.boca_besando,
-            R.drawable.boca_abierta_feliz,
-            R.drawable.ojos_feliz_cerrando,
-        )
     }
 }
