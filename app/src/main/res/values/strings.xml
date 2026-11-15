@@ -178,6 +178,11 @@
     <string name="chat_subtitle">En tu dispositivo, sin internet</string>
     <string name="chat_close">Cerrar el chat</string>
     <string name="chat_new">Nueva</string>
+    <string name="chat_clear">Limpiar chat</string>
+    <string name="chat_clear_title">¿Limpiar el chat?</string>
+    <string name="chat_clear_message">Se borrará toda la conversación con Nao, también la guardada. No se puede deshacer.</string>
+    <string name="chat_clear_confirm">Limpiar</string>
+    <string name="chat_clear_cancel">Cancelar</string>
     <string name="chat_empty">Escríbeme algo y te responderé.</string>
     <string name="chat_input_hint">Escribe a Nao…</string>
     <string name="chat_send">Enviar</string>

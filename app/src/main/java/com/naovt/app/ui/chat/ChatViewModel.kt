@@ -20,7 +20,17 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-data class ChatMessage(val id: Long, val fromUser: Boolean, val text: String)
+/**
+ * Un mensaje del chat. [transient] = texto de aviso de la app (error, "no supo qué decir"): se
+ * muestra pero no se guarda ni se le pasa a la IA como contexto.
+ */
+data class ChatMessage(
+    val id: Long,
+    val fromUser: Boolean,
+    val text: String,
+    val timestamp: Long = System.currentTimeMillis(),
+    val transient: Boolean = false,
+)
 
 sealed interface ChatModelState {
     data object Idle : ChatModelState
@@ -48,7 +58,10 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private val app = application
     private val repository = NaoLLMRepository.get(application)
 
-    val messages = mutableStateListOf<ChatMessage>()
+    private val historyStore = ChatHistoryStore(application)
+
+    // Al abrir el chat se leen los mensajes guardados.
+    val messages = mutableStateListOf<ChatMessage>().apply { addAll(historyStore.load()) }
 
     var modelState by mutableStateOf<ChatModelState>(ChatModelState.Idle)
         private set
@@ -61,7 +74,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
     var speaker: ChatSpeaker? = null
 
-    private var nextId = 0L
+    private var nextId = (messages.maxOfOrNull { it.id } ?: -1L) + 1
     private var currentReply: ReplySession? = null
     private var holdsModel = false // el chat mantiene el modelo cargado mientras está abierto
 
@@ -107,6 +120,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         val replyIndex = messages.size
         messages += ChatMessage(nextId++, fromUser = false, text = "")
         isGenerating = true
+        persist() // el mensaje del usuario se guarda ya; la respuesta, cuando termine
 
         val session = ReplySession(replyIndex)
         currentReply = session
@@ -129,6 +143,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     fun newConversation() {
         stopGeneration()
         messages.clear()
+        historyStore.clearAsync()
     }
 
     override fun onCleared() {
@@ -156,12 +171,21 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /** Las últimas intervenciones, para que Nao recuerde de qué se está hablando. */
+    /** Guarda los mensajes terminados (sin la respuesta en curso ni los avisos de la app). */
+    private fun persist() {
+        historyStore.saveAsync(messages.filter { !it.transient && it.text.isNotBlank() })
+    }
+
+    /**
+     * Las últimas intervenciones (de [HISTORY_MESSAGES] mensajes, unas 5 idas y vueltas), para que
+     * Nao recuerde de qué se está hablando sin llenar la ventana de contexto del modelo.
+     * Se arma antes de añadir el mensaje nuevo, que va aparte como `user`.
+     */
     private fun buildHistory(): String {
-        val recent = messages.filter { it.text.isNotBlank() }.takeLast(HISTORY_MESSAGES)
+        val recent = messages.filter { it.text.isNotBlank() && !it.transient }.takeLast(HISTORY_MESSAGES)
         if (recent.isEmpty()) return ""
         return "Conversación reciente:\n" + recent.joinToString("\n") { message ->
-            (if (message.fromUser) "Usuario: " else "Nao: ") + message.text
+            (if (message.fromUser) "Usuario: " else "Nao: ") + message.text.take(HISTORY_MESSAGE_CHARS)
         }
     }
 
@@ -194,7 +218,8 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             isGenerating = false
             currentReply = null
             val partial = processor.visibleText
-            update(if (partial.isBlank()) app.getString(R.string.chat_reply_error) else partial)
+            if (partial.isBlank()) update(app.getString(R.string.chat_reply_error), transient = true) else update(partial)
+            persist()
         }
 
         fun cancel() {
@@ -208,8 +233,9 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             val rest = processor.finish()
             if (speakRest) speak(rest)
             showText()
-            if (processor.visibleText.isBlank()) update(app.getString(R.string.chat_reply_empty))
+            if (processor.visibleText.isBlank()) update(app.getString(R.string.chat_reply_empty), transient = true)
             isGenerating = false
+            persist() // la respuesta completa (o lo que alcanzó a decir si se detuvo)
             if (currentReply === this) currentReply = null
         }
 
@@ -224,13 +250,14 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
         private fun showText() = update(processor.visibleText)
 
-        private fun update(text: String) {
-            if (index < messages.size) messages[index] = messages[index].copy(text = text)
+        private fun update(text: String, transient: Boolean = false) {
+            if (index < messages.size) messages[index] = messages[index].copy(text = text, transient = transient)
         }
     }
 
     private companion object {
         const val TAG = "ChatViewModel"
-        const val HISTORY_MESSAGES = 6
+        const val HISTORY_MESSAGES = 10 // 5 interacciones (usuario + Nao)
+        const val HISTORY_MESSAGE_CHARS = 400 // recorta mensajes largos para no saturar el contexto
     }
 }

@@ -23,11 +23,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -114,6 +116,25 @@ fun ChatScreen(
         if (totalItems > 0) listState.scrollToItem(totalItems - 1)
     }
 
+    // Limpiar el chat borra también lo guardado: se pide confirmación.
+    var confirmClear by rememberSaveable { mutableStateOf(false) }
+    if (confirmClear) {
+        AlertDialog(
+            onDismissRequest = { confirmClear = false },
+            title = { Text(stringResource(R.string.chat_clear_title)) },
+            text = { Text(stringResource(R.string.chat_clear_message)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmClear = false
+                    viewModel.newConversation()
+                }) { Text(stringResource(R.string.chat_clear_confirm)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmClear = false }) { Text(stringResource(R.string.chat_clear_cancel)) }
+            },
+        )
+    }
+
     val close = {
         viewModel.stopGeneration()
         onClose()
@@ -137,7 +158,7 @@ fun ChatScreen(
                     talkingMouth = talkingMouth,
                     blinking = blinking,
                     canClear = messages.isNotEmpty(),
-                    onClear = viewModel::newConversation,
+                    onClear = { confirmClear = true },
                     onClose = close,
                 )
 
@@ -254,7 +275,9 @@ private fun ChatHeader(
             )
         }
         if (canClear) {
-            TextButton(onClick = onClear) { Text(stringResource(R.string.chat_new)) }
+            IconButton(onClick = onClear) {
+                Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.chat_clear))
+            }
         }
         IconButton(onClick = onClose) {
             Icon(Icons.Default.Close, contentDescription = stringResource(R.string.chat_close))
