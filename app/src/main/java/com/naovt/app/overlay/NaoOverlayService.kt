@@ -74,6 +74,7 @@ class NaoOverlayService : Service() {
             speaker = ::speakAnswer,
             onThinkingChanged = { panelView?.setThinking(it) },
             onProblem = { message -> Toast.makeText(this, message, Toast.LENGTH_LONG).show() },
+            shareChatHistory = true, // mismo historial que el chat y el mini chat de la pantalla principal
         ).also { answererInstance = it }
 
     // Menú radial (mantener presionado a Nao).

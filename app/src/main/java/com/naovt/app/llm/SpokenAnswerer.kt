@@ -14,7 +14,7 @@ import com.naovt.app.voice.VoicePreferences
  *
  * @param speaker dice una oración. [first] = true en la primera de la respuesta (corta lo que se estuviera diciendo).
  * @param shareChatHistory true = usa el historial compartido con el chat "Hablar con Nao" (lo lee como
- *   contexto y le añade lo que se dice aquí). Solo la pantalla principal; Nao flotante usa su memoria corta.
+ *   contexto y le añade lo que se dice aquí). La pantalla principal y Nao flotante lo usan; false = memoria corta propia.
  * @param onProblem recibe un mensaje listo para mostrarle al usuario cuando algo no se pudo.
  */
 class SpokenAnswerer(
