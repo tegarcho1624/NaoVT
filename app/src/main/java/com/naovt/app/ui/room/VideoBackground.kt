@@ -6,6 +6,7 @@ import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -92,7 +93,7 @@ fun VideoBackground(path: String, paused: Boolean, modifier: Modifier = Modifier
     }
 
     AndroidView(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize().clipToBounds(), // el zoom nunca se sale de la pantalla
         factory = { ctx ->
             PlayerView(ctx).apply {
                 // Ocupa todo el espacio que le da el AndroidView (no se ajusta a su contenido).
