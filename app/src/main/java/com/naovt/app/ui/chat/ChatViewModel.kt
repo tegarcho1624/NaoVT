@@ -4,7 +4,6 @@ import android.app.Application
 import android.net.Uri
 import android.util.Log
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
@@ -58,10 +57,8 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private val app = application
     private val repository = NaoLLMRepository.get(application)
 
-    private val historyStore = ChatHistoryStore(application)
-
-    // Al abrir el chat se leen los mensajes guardados.
-    val messages = mutableStateListOf<ChatMessage>().apply { addAll(historyStore.load()) }
+    // Historial compartido con el mini chat de la pantalla principal; se lee de lo guardado la primera vez.
+    val messages = ChatHistory.also { it.init(application) }.messages
 
     var modelState by mutableStateOf<ChatModelState>(ChatModelState.Idle)
         private set
@@ -74,7 +71,6 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
     var speaker: ChatSpeaker? = null
 
-    private var nextId = (messages.maxOfOrNull { it.id } ?: -1L) + 1
     private var currentReply: ReplySession? = null
     private var holdsModel = false // el chat mantiene el modelo cargado mientras está abierto
 
@@ -116,9 +112,9 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         if (text.isEmpty() || isGenerating || modelState != ChatModelState.Ready) return
 
         val history = buildHistory()
-        messages += ChatMessage(nextId++, fromUser = true, text = text)
+        messages += ChatMessage(ChatHistory.newId(), fromUser = true, text = text)
         val replyIndex = messages.size
-        messages += ChatMessage(nextId++, fromUser = false, text = "")
+        messages += ChatMessage(ChatHistory.newId(), fromUser = false, text = "")
         isGenerating = true
         persist() // el mensaje del usuario se guarda ya; la respuesta, cuando termine
 
@@ -142,8 +138,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     /** Borra la conversación y empieza de cero. */
     fun newConversation() {
         stopGeneration()
-        messages.clear()
-        historyStore.clearAsync()
+        ChatHistory.clear()
     }
 
     override fun onCleared() {
@@ -171,23 +166,9 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /** Guarda los mensajes terminados (sin la respuesta en curso ni los avisos de la app). */
-    private fun persist() {
-        historyStore.saveAsync(messages.filter { !it.transient && it.text.isNotBlank() })
-    }
+    private fun persist() = ChatHistory.persist()
 
-    /**
-     * Las últimas intervenciones (de [HISTORY_MESSAGES] mensajes, unas 5 idas y vueltas), para que
-     * Nao recuerde de qué se está hablando sin llenar la ventana de contexto del modelo.
-     * Se arma antes de añadir el mensaje nuevo, que va aparte como `user`.
-     */
-    private fun buildHistory(): String {
-        val recent = messages.filter { it.text.isNotBlank() && !it.transient }.takeLast(HISTORY_MESSAGES)
-        if (recent.isEmpty()) return ""
-        return "Conversación reciente:\n" + recent.joinToString("\n") { message ->
-            (if (message.fromUser) "Usuario: " else "Nao: ") + message.text.take(HISTORY_MESSAGE_CHARS)
-        }
-    }
+    private fun buildHistory(): String = ChatHistory.recentContext()
 
     /** Una respuesta en curso: va armando el texto y entregando oraciones a la voz. */
     private inner class ReplySession(private val index: Int) {
@@ -257,7 +238,5 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
     private companion object {
         const val TAG = "ChatViewModel"
-        const val HISTORY_MESSAGES = 10 // 5 interacciones (usuario + Nao)
-        const val HISTORY_MESSAGE_CHARS = 400 // recorta mensajes largos para no saturar el contexto
     }
 }

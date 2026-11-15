@@ -144,6 +144,7 @@ fun NaoScreen(
             speaker = { text, first -> if (first) voice.speak(text) else voice.enqueue(text) },
             onThinkingChanged = { miniChatThinking = it },
             onProblem = { message -> Toast.makeText(context, message, Toast.LENGTH_LONG).show() },
+            shareChatHistory = true, // el mini chat y "Hablar con Nao" comparten el historial
         )
     }
     DisposableEffect(answerer) { onDispose { answerer.cancel() } }

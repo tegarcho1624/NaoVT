@@ -2,6 +2,7 @@ package com.naovt.app.llm
 
 import android.content.Context
 import com.naovt.app.R
+import com.naovt.app.ui.chat.ChatHistory
 import com.naovt.app.voice.VoicePreferences
 
 /**
@@ -12,6 +13,8 @@ import com.naovt.app.voice.VoicePreferences
  * mostrar el indicador de "pensando" ([onThinkingChanged]). Todo ocurre en el hilo principal.
  *
  * @param speaker dice una oración. [first] = true en la primera de la respuesta (corta lo que se estuviera diciendo).
+ * @param shareChatHistory true = usa el historial compartido con el chat "Hablar con Nao" (lo lee como
+ *   contexto y le añade lo que se dice aquí). Solo la pantalla principal; Nao flotante usa su memoria corta.
  * @param onProblem recibe un mensaje listo para mostrarle al usuario cuando algo no se pudo.
  */
 class SpokenAnswerer(
@@ -19,6 +22,7 @@ class SpokenAnswerer(
     private val speaker: (text: String, first: Boolean) -> Unit,
     private val onThinkingChanged: (Boolean) -> Unit,
     private val onProblem: (String) -> Unit,
+    private val shareChatHistory: Boolean = false,
 ) {
 
     private val appContext = context.applicationContext
@@ -41,7 +45,12 @@ class SpokenAnswerer(
             return false
         }
 
-        val current = Session(text)
+        val current = Session(text, contextBlock = historyBlock())
+        if (shareChatHistory) {
+            ChatHistory.init(appContext)
+            ChatHistory.add(fromUser = true, text = text)
+            ChatHistory.persist()
+        }
         session = current
         onThinkingChanged(true)
         repository.acquire() // mantiene el modelo cargado mientras se usa
@@ -62,15 +71,25 @@ class SpokenAnswerer(
     }
 
     private fun historyBlock(): String =
-        if (history.isEmpty()) "" else "Conversación reciente:\n" + history.joinToString("\n")
+        if (shareChatHistory) {
+            ChatHistory.init(appContext)
+            ChatHistory.recentContext()
+        } else if (history.isEmpty()) "" else "Conversación reciente:\n" + history.joinToString("\n")
 
     private fun remember(userText: String, reply: String) {
+        if (shareChatHistory) {
+            if (reply.isNotBlank()) {
+                ChatHistory.add(fromUser = false, text = reply)
+                ChatHistory.persist()
+            }
+            return
+        }
         history.addLast("Usuario: $userText")
         if (reply.isNotBlank()) history.addLast("Nao: $reply")
         while (history.size > HISTORY_LINES) history.removeFirst()
     }
 
-    private inner class Session(private val prompt: String) {
+    private inner class Session(private val prompt: String, private val contextBlock: String) {
 
         private val processor = ReplyStreamProcessor()
         var finished = false
@@ -80,7 +99,7 @@ class SpokenAnswerer(
         fun generate() {
             repository.generarRespuesta(
                 prompt = prompt,
-                contexto = historyBlock(),
+                contexto = contextBlock,
                 onToken = { token ->
                     if (!finished) {
                         speak(processor.feed(token))
